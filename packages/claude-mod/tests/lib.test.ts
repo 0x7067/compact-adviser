@@ -98,6 +98,24 @@ describe("cwd .env key", () => {
     ).toBe("second");
     expect(parseDotenvKey("", "TYPESAFE_API_KEY")).toBeUndefined();
   });
+
+  test("export and declare -x prefixes and one matching quote layer are stripped", () => {
+    expect(parseDotenvKey("export TYPESAFE_API_KEY=from-export\n", "TYPESAFE_API_KEY")).toBe(
+      "from-export",
+    );
+    expect(parseDotenvKey('declare -x TYPESAFE_API_KEY="from-declare"\n', "TYPESAFE_API_KEY")).toBe(
+      "from-declare",
+    );
+    expect(parseDotenvKey("TYPESAFE_API_KEY='from-single'\n", "TYPESAFE_API_KEY")).toBe(
+      "from-single",
+    );
+    expect(parseDotenvKey('TYPESAFE_API_KEY="from-double"\n', "TYPESAFE_API_KEY")).toBe(
+      "from-double",
+    );
+    expect(
+      parseDotenvKey('export TYPESAFE_API_KEY="from-export-quoted"\n', "TYPESAFE_API_KEY"),
+    ).toBe("from-export-quoted");
+  });
 });
 
 describe("session cooldowns", () => {

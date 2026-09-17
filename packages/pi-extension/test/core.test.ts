@@ -171,6 +171,28 @@ test("cwd .env supplies TYPESAFE_API_KEY when process env is empty and is ignore
   assert.equal(parseDotenvKey("TYPESAFE_API_KEY=only\n", "TYPESAFE_API_KEY"), "only");
 });
 
+test("cwd .env accepts export, declare -x, and one matching quote layer", (t) => {
+  const dir = temp(t);
+  writeFileSync(join(dir, ".env"), 'declare -x TYPESAFE_API_KEY="from-declare"\n');
+  assert.equal(resolveTypesafeApiKey({}, dir), "from-declare");
+  writeFileSync(join(dir, ".env"), "export TYPESAFE_API_KEY='from-export'\n");
+  assert.equal(resolveTypesafeApiKey({}, dir), "from-export");
+  writeFileSync(join(dir, ".env"), "export TYPESAFE_API_KEY=from-export-plain\n");
+  assert.equal(resolveTypesafeApiKey({ TYPESAFE_API_KEY: "from-env" }, dir), "from-env");
+  assert.equal(
+    parseDotenvKey('TYPESAFE_API_KEY="from-double"\n', "TYPESAFE_API_KEY"),
+    "from-double",
+  );
+  assert.equal(
+    parseDotenvKey("TYPESAFE_API_KEY='from-single'\n", "TYPESAFE_API_KEY"),
+    "from-single",
+  );
+  assert.equal(
+    parseDotenvKey('export TYPESAFE_API_KEY="from-export-quoted"\n', "TYPESAFE_API_KEY"),
+    "from-export-quoted",
+  );
+});
+
 test("the request deadline aborts work instead of delaying the next turn", async () => {
   let aborted = false;
   const transport = (async (_url, init) =>

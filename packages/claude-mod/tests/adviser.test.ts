@@ -146,7 +146,7 @@ describe("turn-end gates", () => {
     const w = world(on, {
       key: undefined,
       dotenv:
-        "# ignore\nOTHER=nope\nTYPESAFE_API_KEY=from-dotenv\nTYPESAFE_API_KEY=from-dotenv-last\n",
+        '# ignore\nOTHER=nope\nTYPESAFE_API_KEY=from-dotenv\ndeclare -x TYPESAFE_API_KEY="from-dotenv-last"\n',
     });
     await $.session.start(interactiveStart);
     expect(w.journal.statuses.at(-1)).toBe("HINT · min 40,000");

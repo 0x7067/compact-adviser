@@ -43,6 +43,7 @@ The live regression exercises the `--plugin-dir` path; the skills-directory adop
 ## First-run setup
 
 1. Supply `TYPESAFE_API_KEY` to Claude Code's launch environment through your normal secret manager, or put `TYPESAFE_API_KEY=...` in a `.env` file in the working directory.
+`export` and `declare -x` prefixes are accepted, and one matching pair of quotes around the value is stripped.
 A non-empty launch-environment value always wins; the file is read only when the variable is unset or empty, and a missing file is ignored.
 Do not paste a key into any dialog or commit one to a repository.
 2. Run `/compact-adviser sharing on` and read the data-sharing confirmation.
