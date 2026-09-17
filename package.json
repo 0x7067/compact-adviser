@@ -1,0 +1,11 @@
+{
+  "name": "compact-adviser-monorepo",
+  "private": true,
+  "scripts": {
+    "check": "npm --prefix packages/pi-extension run check",
+    "test": "npm --prefix packages/pi-extension test",
+    "test:e2e": "npm --prefix packages/pi-extension run test:e2e",
+    "typecheck": "npm --prefix packages/pi-extension run typecheck",
+    "lint": "npm --prefix packages/pi-extension run lint"
+  }
+}
