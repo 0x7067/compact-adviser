@@ -52,19 +52,21 @@ describe("settings", () => {
     expect(DEFAULT_MINIMUM).toBe(40000);
   });
 
-  test("configuration combines the host rows with stored consent, defaulting consent off", () => {
+  test("configuration combines the host rows with stored acknowledgement and ignores legacy sharingConsent", () => {
     expect(readConfig(rows("hint", 40000), undefined)).toEqual({
       mode: "hint",
       minContextTokens: 40000,
-      sharingConsent: false,
       autoAcknowledged: false,
     });
     expect(
-      readConfig(rows("auto", 60000), { version: 1, sharingConsent: true, autoAcknowledged: true }),
+      readConfig(rows("auto", 60000), {
+        version: 1,
+        sharingConsent: false,
+        autoAcknowledged: true,
+      }),
     ).toEqual({
       mode: "auto",
       minContextTokens: 60000,
-      sharingConsent: true,
       autoAcknowledged: true,
     });
   });
@@ -82,9 +84,7 @@ describe("settings", () => {
     expect(() =>
       parseConsent({ version: 2, sharingConsent: true, autoAcknowledged: true }),
     ).toThrow("consent");
-    expect(() =>
-      parseConsent({ version: 1, sharingConsent: "yes", autoAcknowledged: false }),
-    ).toThrow("consent");
+    expect(() => parseConsent({ version: 1, autoAcknowledged: "yes" })).toThrow("consent");
   });
 });
 

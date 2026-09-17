@@ -43,6 +43,25 @@ test("config defaults, atomic persistence, field merging, contention and invalid
   assert.throws(() => a.read());
   assert.throws(() => a.update({ mode: "off" }));
   assert.equal(JSON.parse(readFileSync(target, "utf8")).mode, "hint");
+  unlinkSync(a.path);
+  writeFileSync(
+    a.path,
+    JSON.stringify({
+      version: 1,
+      mode: "off",
+      minContextTokens: 50000,
+      sharingConsent: false,
+      autoAcknowledged: true,
+    }),
+  );
+  assert.deepEqual(a.read(), {
+    version: 1,
+    mode: "off",
+    minContextTokens: 50000,
+    autoAcknowledged: true,
+  });
+  a.update({ mode: "hint" });
+  assert.equal("sharingConsent" in JSON.parse(readFileSync(a.path, "utf8")), false);
 });
 
 test("minimum parsing rejects ambiguous, nonpositive or unsafe values", () => {

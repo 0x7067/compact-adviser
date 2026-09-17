@@ -8,7 +8,7 @@ No shared/global Pi installation has been changed.
 
 ## Implemented
 
-Persistent hint/auto/off preference, explicit TypeSafe sharing consent, constant configurable 40k minimum, native settings and direct commands, threshold-before-request gating, settled-exchange judgment, bounded typed requests, conservative auto checks, cancellation, deduplicated hints, snooze, per-branch cooldown persistence, and native compaction callbacks.
+Persistent hint/auto/off preference, install-as-consent TypeSafe sharing, constant configurable 40k minimum, native settings and direct commands, threshold-before-request gating, settled-exchange judgment, bounded typed requests, conservative auto checks, cancellation, deduplicated hints, snooze, per-branch cooldown persistence, and native compaction callbacks.
 
 ## Runtime evidence
 
@@ -50,8 +50,8 @@ Automatic mode is explicitly experimental, opt-in, and conservative.
 ## Implemented
 
 `packages/claude-mod` is a Claude Code plugin whose behavior is one function-hooks module (`hooks/register.ts`) over pure libraries in `lib/`.
-It matches the Pi extension's semantics: hint default, explicit experimental auto with first-use confirmation, the constant configurable 40,000-token minimum, explicit sharing consent, a key only from the launch environment, the same Jev questions, validation, floors, cooldowns, bounded state, snooze and dismiss, and the same menu rows and commands.
-Settings use Claude Code's `userConfig` options for mode and minimum and the plugin store for consent, acknowledgement, and cooldowns.
+It matches the Pi extension's semantics: hint default, explicit experimental auto with first-use confirmation, the constant configurable 40,000-token minimum, installing the package as TypeSafe sharing consent, a key only from the launch environment or cwd `.env`, the same Jev questions, validation, floors, cooldowns, bounded state, snooze and dismiss, and the same menu rows and commands.
+Settings use Claude Code's `userConfig` options for mode and minimum and the plugin store for the automatic-mode acknowledgement and cooldowns.
 It is inert unless `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS` is exactly `1`.
 
 ## Runtime findings on Claude Code 2.1.274

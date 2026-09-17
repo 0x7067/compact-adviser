@@ -21,7 +21,7 @@ function run(
 ) {
   const dir = temp(t),
     store = new ConfigStore(dir);
-  store.update({ mode, sharingConsent: true, autoAcknowledged: mode === "auto" });
+  store.update({ mode, autoAcknowledged: mode === "auto" });
   const sm = SessionManager.create(dir, join(dir, "sessions"));
   sm.appendMessage({
     role: "user",

@@ -52,7 +52,7 @@ const COMPACT_INSTRUCTIONS =
 const PENDING_NOTICE_KEY = "pendingNotice";
 const LOOPBACK_ENDPOINT = /^http:\/\/127\.0\.0\.1:\d{1,5}\/[\x21-\x7e]*$/;
 const USAGE =
-  "Use /compact-adviser, auto, hint, off, status, threshold <tokens|default>, sharing <on|off>, snooze or dismiss.";
+  "Use /compact-adviser, auto, hint, off, status, threshold <tokens|default>, snooze or dismiss.";
 
 // Per module environment (a hot reload starts fresh; see the header).
 let activation: Promise<boolean> | undefined;
@@ -128,32 +128,15 @@ function notice($: EngineInterface, message: string): void {
   $.ui.toast(message, { timeoutMs: 8000 });
 }
 
-async function readiness($: EngineInterface, config: Config): Promise<string> {
-  if (config.mode === "off") return "";
-  if (!config.sharingConsent) return " · sharing off";
-  if (!(await apiKey($))) return " · key missing";
-  if (config.mode === "auto" && !config.autoAcknowledged) return " · auto not confirmed";
-  return "";
-}
-
-/** The pinned indicator, as the Pi extension's status: mode, minimum, and readiness. */
-async function display($: EngineInterface, config?: Config): Promise<void> {
-  if (!interactive || hintVisible) return;
-  try {
-    const c = config ?? (await loadConfig($));
-    $.ui.status(
-      `${c.mode.toUpperCase()} · min ${formatTokens(c.minContextTokens)}${await readiness($, c)}`,
-    );
-  } catch {
-    $.ui.status("settings error");
-  }
+function clearStatus($: EngineInterface): void {
+  if (interactive) $.ui.status(undefined);
 }
 
 async function invalidate($: EngineInterface): Promise<void> {
   generation++;
   if (hintVisible) {
     hintVisible = false;
-    await display($);
+    clearStatus($);
   }
 }
 
@@ -168,7 +151,6 @@ async function eligible(
     interactive &&
     !compacting &&
     config.mode !== "off" &&
-    config.sharingConsent &&
     (await apiKey($)) !== "" &&
     typeof tokens === "number" &&
     Number.isFinite(tokens) &&
@@ -255,7 +237,7 @@ async function judgeCheckpoint($: EngineInterface, epoch: number): Promise<void>
         $,
         "Compaction failed or was cancelled. No immediate retry; Claude Code remains in control.",
       );
-      await display($);
+      clearStatus($);
       return;
     }
     generation++;
@@ -268,7 +250,7 @@ async function judgeCheckpoint($: EngineInterface, epoch: number): Promise<void>
     // when the host throttles the toast.
     $.ui.log(`compact-adviser: automatic ${completed}`);
     $.ui.toast(completed);
-    await display($);
+    clearStatus($);
   } finally {
     judging = false;
   }
@@ -286,10 +268,8 @@ async function settle($: EngineInterface): Promise<void> {
     config = await loadConfig($);
   } catch (error) {
     notice($, error instanceof Error ? error.message : "Cannot read compact-adviser settings.");
-    await display($);
     return;
   }
-  await display($, config);
   if (judging || !(await eligible($, config, state, context.tokens, now))) return;
   const epoch = generation;
   $.clock.after(0, () => {
@@ -317,7 +297,6 @@ async function saveRow(
   }
   diagnostic = "";
   await showPendingNotice($);
-  await display($);
   return true;
 }
 
@@ -344,7 +323,7 @@ function openPane($: EngineInterface): Promise<void> {
     title: "Compact adviser (saved for all sessions)",
     focus: true,
     closeOnEscape: true,
-    rows: 9,
+    rows: 8,
   });
 }
 
@@ -385,7 +364,7 @@ async function changeMode($: EngineInterface, mode: Mode, fromPane = false): Pro
       $,
       MODE_KEY,
       "auto",
-      "Automatic mode saved (all sessions). TypeSafe sharing and a key are still required.",
+      "Automatic mode saved (all sessions). A TypeSafe key is still required.",
     );
     return;
   }
@@ -413,25 +392,6 @@ async function changeMinimum($: EngineInterface, text: string): Promise<boolean>
   );
 }
 
-async function changeSharing($: EngineInterface, on: boolean, fromPane = false): Promise<void> {
-  if (
-    on &&
-    !(await confirm(
-      $,
-      "Eligible checkpoints send bounded user requests, recent replies, short tool excerpts and artifact names to api.typesafe.ai. Secret filtering is best-effort, not a guarantee. System prompts, hidden reasoning and images are excluded. This permission persists across projects. Set TYPESAFE_API_KEY in Claude Code's launch environment or in a .env file in the working directory; do not paste it here. Send selected conversation text to TypeSafe?",
-      "Allow sharing",
-      "TypeSafe",
-      fromPane,
-    ))
-  )
-    return;
-  await saveConsent($, { sharingConsent: on });
-  $.ui.toast(`TypeSafe conversation sharing ${on ? "enabled" : "disabled"} (all sessions).`, {
-    timeoutMs: 6000,
-  });
-  await display($);
-}
-
 async function statusText($: EngineInterface): Promise<string> {
   const config = await loadConfig($);
   const { state } = await loadState($);
@@ -449,7 +409,7 @@ async function statusText($: EngineInterface): Promise<string> {
       ? (cooldownReason(state, tokens, await $.clock.now()) ??
         "No cooldown; semantic checks still apply.")
       : "Waiting for fresh model usage.";
-  return `Mode: ${config.mode}${config.mode === "auto" && !config.autoAcknowledged ? " (not confirmed)" : ""}. Minimum: ${formatTokens(config.minContextTokens)} tokens. Context: ${typeof tokens === "number" ? formatTokens(tokens) : "unknown"}. Sharing: ${config.sharingConsent ? "on" : "off"}. Key: ${(await apiKey($)) ? "present" : "missing"}. ${cooldown}${engine} Settings: /config (compact-adviser rows) and /compact-adviser.`;
+  return `Mode: ${config.mode}${config.mode === "auto" && !config.autoAcknowledged ? " (not confirmed)" : ""}. Minimum: ${formatTokens(config.minContextTokens)} tokens. Context: ${typeof tokens === "number" ? formatTokens(tokens) : "unknown"}. Key: ${(await apiKey($)) ? "present" : "missing"}. ${cooldown}${engine} Settings: /config (compact-adviser rows) and /compact-adviser.`;
 }
 
 async function snoozeOrDismiss($: EngineInterface, command: "snooze" | "dismiss") {
@@ -482,10 +442,8 @@ export const register: Register = (on, options) => {
     hintVisible = false;
     await $.command.register({
       name: COMMAND,
-      description:
-        "Configure persistent compaction advice, experimental auto, token minimum and TypeSafe sharing",
-      argumentHint:
-        "[auto|hint|off|status|threshold <tokens|default>|sharing <on|off>|snooze|dismiss]",
+      description: "Configure persistent compaction advice, experimental auto, and token minimum",
+      argumentHint: "[auto|hint|off|status|threshold <tokens|default>|snooze|dismiss]",
     });
     try {
       const now = await $.clock.now();
@@ -498,7 +456,7 @@ export const register: Register = (on, options) => {
       // Pruning is housekeeping; a failure leaves old cooldown records in place.
     }
     await showPendingNotice($).catch(() => undefined);
-    await display($);
+    clearStatus($);
     return next(e);
   });
 
@@ -533,7 +491,6 @@ export const register: Register = (on, options) => {
       await invalidate($);
       const key = sessionKey(await $.session.id());
       await $.store.set(key, initialState(true, await $.clock.now()));
-      await display($);
     } catch {
       // The cooldown record stays as it was; the next judgment re-reads fresh usage.
     }
@@ -554,8 +511,6 @@ export const register: Register = (on, options) => {
         await changeMode($, command as Mode);
       } else if (command === "threshold" && value) {
         await changeMinimum($, value);
-      } else if (command === "sharing" && (value === "on" || value === "off")) {
-        await changeSharing($, value === "on");
       } else if (command === "status" && !value) {
         $.ui.log(`compact-adviser: ${await statusText($)}`);
       } else if ((command === "snooze" || command === "dismiss") && !value) {
@@ -640,11 +595,6 @@ export const register: Register = (on, options) => {
           minimumDraft = undefined;
           run(() => changeMinimum($, "default"));
         },
-      }),
-      Button({
-        key: "sharing",
-        label: `TypeSafe sharing: ${config.sharingConsent ? "on" : "off"}`,
-        onPress: () => run(() => changeSharing($, !config.sharingConsent, true)),
       }),
       Button({
         key: "status",

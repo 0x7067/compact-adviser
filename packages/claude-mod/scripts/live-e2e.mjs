@@ -7,13 +7,12 @@
 // real TypeSafe request is used, and no user configuration is read or written.
 //
 // It proves:
-//   1. With CLAUDE_CODE_ENABLE_FUNCTION_HOOKS unset the mod is inert: no indicator and no
+//   1. With CLAUDE_CODE_ENABLE_FUNCTION_HOOKS unset the mod is inert: no status strip and no
 //      /compact-adviser command.
-//   2. With the flag on: the indicator, sharing consent through the engine's dialog, the
-//      settings pane (an invalid minimum is refused and kept for editing, a valid one is
-//      saved to the host's plugin options), and Escape closing the pane.
+//   2. With the flag on: the settings pane (an invalid minimum is refused and kept for editing,
+//      a valid one is saved to the host's plugin options), and Escape closing the pane.
 //   3. A large settled exchange is judged (a bearer-authenticated jev-latest request) and
-//      the hint is pinned; the next turn clears it.
+//      the hint is shown; the next turn clears it without restoring ambient chrome.
 //   4. Automatic mode chosen in the pane asks for confirmation, then compacts exactly once
 //      at the next eligible checkpoint through Claude Code's own compaction.
 //
@@ -289,33 +288,25 @@ try {
   if (screen().includes("Configure persistent compaction advice")) {
     throw new Error(`[${step}] /compact-adviser offered without the flag\n${screen()}`);
   }
-  pass(
-    `Claude Code ${version}: without CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1 there is no indicator or command`,
-  );
+  pass(`Claude Code ${version}: without CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1 there is no command`);
 
-  // 2. Flag on: indicator, consent, pane.
+  // 2. Flag on: command, pane, no ambient status strip.
   step = "flag on";
   launch(true);
   await ready();
-  await waitText("compact-adviser: HINT · min 40,000 · sharing off");
-  pass("the indicator shows mode, the constant 40,000-token minimum, and missing consent");
-
-  step = "sharing consent";
-  await command("/compact-adviser sharing on");
-  await waitText("api.typesafe.ai");
-  await waitText("Allow sharing");
-  key("Enter");
-  await waitText("compact-adviser: HINT · min 40,000");
-  await waitFor(
-    (s) => !statusLine(s).includes("sharing off"),
-    "the consent to clear the readiness note",
-  );
-  pass("sharing consent is granted through the engine's own dialog");
-
-  step = "pane minimum";
+  await sleep(1500);
+  if (statusLine(screen()).includes("HINT · min")) {
+    throw new Error(`[${step}] ambient status strip shown at idle\n${screen()}`);
+  }
   await command("/compact-adviser");
   await waitText("Minimum context tokens: 40000");
   await waitText("Reset minimum to 40,000");
+  if (screen().includes("TypeSafe sharing")) {
+    throw new Error(`[${step}] sharing toggle still present\n${screen()}`);
+  }
+  pass("the settings pane opens without a sharing toggle or idle status strip");
+
+  step = "pane minimum";
   for (let i = 0; i < 6 && !screen().includes("⏎ save"); i++) {
     await sleep(1000);
     key("Tab");
@@ -334,7 +325,7 @@ try {
   type("60000");
   await sleep(300);
   key("Enter");
-  await waitText("compact-adviser: HINT · min 60,000");
+  await waitText("Minimum context saved: 60,000 tokens");
   await waitFor(
     () => pluginOptions().minContextTokens === 60000,
     "the host to store the 60000 minimum",
@@ -359,18 +350,16 @@ try {
   }
   if (JSON.stringify(request.body).includes(TYPESAFE_KEY))
     throw new Error(`[${step}] the key leaked into the body`);
-  pass("a settled 70,000-token exchange is judged once through the host fetch and pins the hint");
+  pass("a settled 70,000-token exchange is judged once through the host fetch and shows the hint");
 
   step = "hint clears";
   await command("E2E-PROMPT-2 run the tests");
   await waitFor(
-    (s) =>
-      statusLine(s) === "⚠ compact-adviser: HINT · min 60,000" ||
-      statusLine(s).endsWith("compact-adviser: HINT · min 60,000"),
-    "the indicator to return",
+    (s) => !statusLine(s).includes(HINT) && !statusLine(s).includes("HINT · min"),
+    "the hint to clear without restoring a status strip",
     60000,
   );
-  pass("the next turn clears the hint and restores the indicator");
+  pass("the next turn clears the hint without restoring ambient chrome");
 
   // 4. Automatic mode through the pane, then one compaction.
   step = "auto";
@@ -390,7 +379,7 @@ try {
   await waitText("Compaction is lossy");
   await waitText("Enable automatic mode");
   key("Enter");
-  await waitText("compact-adviser: AUTO · min 60,000", 20000);
+  await waitText("Automatic mode saved (all sessions)", 20000);
   await waitFor(() => pluginOptions().mode === "auto", "the host to store auto mode");
   key("Escape");
   await waitFor((s) => !s.includes("Reset minimum to 40,000"), "the pane to close");

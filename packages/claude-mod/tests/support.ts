@@ -90,7 +90,7 @@ export type WorldOptions = {
   functionHooks?: string | undefined;
   key?: string | undefined;
   endpoint?: string;
-  consent?: { sharingConsent: boolean; autoAcknowledged: boolean } | "absent" | unknown;
+  consent?: { autoAcknowledged: boolean } | "absent" | unknown;
   mode?: string;
   minimum?: number;
   store?: Record<string, unknown>;
@@ -134,8 +134,7 @@ export function world(on: On, options: WorldOptions = {}): World {
     ...(key === undefined ? {} : { TYPESAFE_API_KEY: key }),
     ...(options.endpoint === undefined ? {} : { COMPACT_ADVISER_TEST_ENDPOINT: options.endpoint }),
   });
-  const consent =
-    "consent" in options ? options.consent : { sharingConsent: true, autoAcknowledged: false };
+  const consent = "consent" in options ? options.consent : "absent";
   // The plugin store, in memory and visible to the test.
   const store = new Map<string, unknown>(
     Object.entries({
@@ -347,7 +346,7 @@ export const pane = {
   surface: "terminal" as const,
   component: "Pane" as const,
   requestId: PLUGIN,
-  viewport: { columns: 100, rows: 9 },
+  viewport: { columns: 100, rows: 8 },
   props: { title: "Compact adviser (saved for all sessions)", isFocused: true },
 } as never;
 

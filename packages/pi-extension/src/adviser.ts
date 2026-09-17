@@ -19,6 +19,8 @@ import {
 
 const LABEL = "compact-adviser";
 const HINT = "Good checkpoint: completed work appears recorded. Run /compact to save tokens.";
+const USAGE =
+  "Use /compact-adviser, auto, hint, off, status, threshold <tokens|default>, snooze or dismiss.";
 interface Options {
   agentDir: string;
   version: string;
@@ -44,20 +46,8 @@ export function installAdviser(pi: ExtensionAPI, options: Options): void {
   function persist(state: SessionState) {
     pi.appendEntry(STATE_TYPE, state);
   }
-  function display(ctx: ExtensionContext, config?: Config) {
-    if (!uiAvailable(ctx)) return;
-    const c = config ?? store.read();
-    const readiness = !supported
-      ? "unsupported Pi"
-      : !c.sharingConsent
-        ? "sharing off"
-        : !key()?.trim()
-          ? "key missing"
-          : "";
-    ctx.ui.setStatus(
-      LABEL,
-      `Compact adviser: ${c.mode.toUpperCase()} · min ${c.minContextTokens.toLocaleString("en-US")}${readiness ? ` · ${readiness}` : ""}`,
-    );
+  function clearStatus(ctx: ExtensionContext) {
+    if (uiAvailable(ctx)) ctx.ui.setStatus(LABEL, undefined);
   }
   function notice(ctx: ExtensionContext, message: string) {
     if (!uiAvailable(ctx) || diagnostic === message) return;
@@ -66,10 +56,9 @@ export function installAdviser(pi: ExtensionAPI, options: Options): void {
   }
   function refresh(ctx: ExtensionContext) {
     try {
-      display(ctx);
+      store.read();
     } catch {
       notice(ctx, "Cannot read compact-adviser settings; automatic action is disabled.");
-      ctx.ui.setStatus(LABEL, "Compact adviser: settings error");
     }
   }
   function invalidate(ctx: ExtensionContext) {
@@ -90,7 +79,6 @@ export function installAdviser(pi: ExtensionAPI, options: Options): void {
       ctx.hasPendingMessages() ||
       ctx.ui.getEditorText?.().trim() ||
       c.mode === "off" ||
-      !c.sharingConsent ||
       !key()?.trim() ||
       !usage ||
       usage.tokens === null ||
@@ -129,7 +117,6 @@ export function installAdviser(pi: ExtensionAPI, options: Options): void {
     let config: Config;
     try {
       config = store.read();
-      display(ctx, config);
     } catch {
       refresh(ctx);
       return;
@@ -222,6 +209,7 @@ export function installAdviser(pi: ExtensionAPI, options: Options): void {
     invalidate(ctx);
     compacting = false;
     automaticCompaction = false;
+    clearStatus(ctx);
     refresh(ctx);
   });
   pi.on("before_agent_start", (_event, ctx) => {
@@ -282,14 +270,13 @@ export function installAdviser(pi: ExtensionAPI, options: Options): void {
     invalidate(ctx);
     compacting = false;
     automaticCompaction = false;
-    if (uiAvailable(ctx)) ctx.ui.setStatus(LABEL, undefined);
+    clearStatus(ctx);
   });
 
   function save(ctx: ExtensionContext, patch: Partial<Config>, message: string) {
     invalidate(ctx);
-    const c = store.update(patch);
+    store.update(patch);
     diagnostic = "";
-    display(ctx, c);
     ctx.ui.notify(message, "info");
   }
   async function changeMode(ctx: ExtensionCommandContext, mode: Mode) {
@@ -307,7 +294,7 @@ export function installAdviser(pi: ExtensionAPI, options: Options): void {
       save(
         ctx,
         { mode, autoAcknowledged: true },
-        "Automatic mode saved (all sessions). TypeSafe sharing and a key are still required.",
+        "Automatic mode saved (all sessions). A TypeSafe key is still required.",
       );
     } else
       save(
@@ -329,27 +316,12 @@ export function installAdviser(pi: ExtensionAPI, options: Options): void {
         "warning",
       );
   }
-  async function sharing(ctx: ExtensionCommandContext, on: boolean) {
-    if (
-      on &&
-      !(await ctx.ui.confirm(
-        "Send selected conversation text to TypeSafe?",
-        "Eligible checkpoints send bounded user requests, recent replies, short tool excerpts and artifact names to api.typesafe.ai. Secret filtering is best-effort, not a guarantee. System prompts, hidden reasoning and images are excluded. This permission persists across projects. Set TYPESAFE_API_KEY in Pi's launch environment or in a .env file in the working directory; do not paste it here.",
-      ))
-    )
-      return;
-    save(
-      ctx,
-      { sharingConsent: on },
-      `TypeSafe conversation sharing ${on ? "enabled" : "disabled"} (all sessions).`,
-    );
-  }
   function status(ctx: ExtensionCommandContext) {
     const c = store.read(),
       s = restoreState(ctx.sessionManager.getBranch()),
       t = ctx.getContextUsage()?.tokens;
     ctx.ui.notify(
-      `Mode: ${c.mode}. Minimum: ${c.minContextTokens.toLocaleString("en-US")} tokens. Context: ${t ?? "unknown"}. Sharing: ${c.sharingConsent ? "on" : "off"}. Key: ${key()?.trim() ? "present" : "missing"}. ${typeof t === "number" ? (cooldownReason(s, t, now()) ?? "No cooldown; semantic checks still apply.") : "Waiting for fresh model usage."} Settings: ${store.path}`,
+      `Mode: ${c.mode}. Minimum: ${c.minContextTokens.toLocaleString("en-US")} tokens. Context: ${t ?? "unknown"}. Key: ${key()?.trim() ? "present" : "missing"}. ${typeof t === "number" ? (cooldownReason(s, t, now()) ?? "No cooldown; semantic checks still apply.") : "Waiting for fresh model usage."} Settings: ${store.path}`,
       "info",
     );
   }
@@ -360,7 +332,6 @@ export function installAdviser(pi: ExtensionAPI, options: Options): void {
         `Mode: ${c.mode}`,
         `Minimum context: ${c.minContextTokens.toLocaleString("en-US")} tokens`,
         "Reset minimum to 40,000",
-        `TypeSafe sharing: ${c.sharingConsent ? "on" : "off"}`,
         "Status",
         "Close",
       ];
@@ -392,26 +363,13 @@ export function installAdviser(pi: ExtensionAPI, options: Options): void {
           }
         }
       } else if (selected === labels[2]) minimum(ctx, "default");
-      else if (selected === labels[3]) await sharing(ctx, !store.read().sharingConsent);
       else status(ctx);
     }
   }
   pi.registerCommand("compact-adviser", {
-    description:
-      "Configure persistent compaction advice, experimental auto, token minimum and TypeSafe sharing",
+    description: "Configure persistent compaction advice, experimental auto, and token minimum",
     getArgumentCompletions: (prefix) =>
-      [
-        "auto",
-        "hint",
-        "off",
-        "status",
-        "threshold ",
-        "threshold default",
-        "sharing on",
-        "sharing off",
-        "snooze",
-        "dismiss",
-      ]
+      ["auto", "hint", "off", "status", "threshold ", "threshold default", "snooze", "dismiss"]
         .filter((v) => v.startsWith(prefix))
         .map((value) => ({ value, label: value })),
     handler: async (args, ctx) => {
@@ -423,8 +381,6 @@ export function installAdviser(pi: ExtensionAPI, options: Options): void {
         else if (["auto", "hint", "off"].includes(command) && !value)
           await changeMode(ctx, command as Mode);
         else if (command === "threshold" && value) minimum(ctx, value);
-        else if (command === "sharing" && ["on", "off"].includes(value))
-          await sharing(ctx, value === "on");
         else if (command === "status" && !value) status(ctx);
         else if (["snooze", "dismiss"].includes(command) && !value) {
           const s = restoreState(ctx.sessionManager.getBranch());
@@ -436,10 +392,7 @@ export function installAdviser(pi: ExtensionAPI, options: Options): void {
               : "Hint dismissed.",
             "info",
           );
-        } else
-          throw new Error(
-            "Use /compact-adviser, auto, hint, off, status, threshold <tokens|default>, sharing <on|off>, snooze or dismiss.",
-          );
+        } else throw new Error(USAGE);
       } catch (error) {
         ctx.ui.notify(error instanceof Error ? error.message : "Could not save settings.", "error");
       }
