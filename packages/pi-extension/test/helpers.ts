@@ -37,7 +37,6 @@ export const apiResponse = () => ({
       probabilities: { recoverable: 0.995, needs_older_details: 0.003, unclear: 0.002 },
       confidence: 0.99,
     },
-    volatile_dependency: { type: "noul", noul: 0.001 },
   },
 });
 export function success(): Judgment {

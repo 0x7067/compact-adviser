@@ -128,17 +128,16 @@ A new turn, any compaction, or a settings save invalidates an outstanding judgme
 
 ## The judgment and its limits
 
-One HTTPS request to `https://api.typesafe.ai/v1/systemone`, through Claude Code's host fetch, uses `jev-latest` and the Pi extension's three independent typed factors:
+One HTTPS request to `https://api.typesafe.ai/v1/systemone`, through Claude Code's host fetch, uses `jev-latest` and the Pi extension's two independent typed factors:
 
 1. Completed checkpoint, still in progress, or unclear.
 2. Known continuation is recoverable, needs exact older details, or unclear.
-3. Probability of a volatile or unsaved dependency.
 
 Local code combines the results; Jev does not generate an explanation.
 Malformed responses, contradictory factors, API failures, and timeouts never produce a hint or a compaction.
 Requests have a two-second deadline, no immediate retry, and capped exponential backoff.
 
-Hint mode requires both positive probabilities at 0.90 or more and a volatile dependency at most 0.10; automatic mode requires 0.98 and 0.02.
+Hint mode requires both positive probabilities at 0.90 or more; automatic mode requires 0.98.
 These are conservative starting knobs, **not measured safety guarantees**.
 
 A hint pins the line `compact-adviser: Potential session boundary detected. Run /compact to save tokens.` under the prompt until your next turn, shows it briefly as a notice, and proposes `/compact` as the prompt box's dim suggestion (Tab to take it).

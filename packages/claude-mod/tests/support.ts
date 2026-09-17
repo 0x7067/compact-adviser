@@ -33,7 +33,6 @@ export type Journal = {
 export type Verdict = {
   completed?: number;
   recoverable?: number;
-  volatile?: number;
 };
 
 export function jevAnswer(v: Verdict = {}) {
@@ -63,7 +62,6 @@ export function jevAnswer(v: Verdict = {}) {
           unclear: 1 - recoverable - rest(recoverable),
         },
       },
-      volatile_dependency: { type: "noul", noul: v.volatile ?? 0.01 },
     },
     usage: { input_tokens: 2500, output_tokens: 0 },
   };

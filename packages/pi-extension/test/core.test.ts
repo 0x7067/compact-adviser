@@ -145,9 +145,19 @@ test("request contains typed factors; output validation rejects malformed/contra
   const valid = parseJudgment(apiResponse());
   assert.ok(qualifies(valid, false));
   assert.ok(qualifies(valid, true));
-  const low = { ...valid, volatileDependency: 0.08 };
-  assert.ok(qualifies(low, false));
-  assert.ok(!qualifies(low, true));
+  const hintOnly = {
+    ...valid,
+    phase: {
+      ...valid.phase,
+      probabilities: { completed_checkpoint: 0.95, still_in_progress: 0.03, unclear: 0.02 },
+    },
+    continuation: {
+      ...valid.continuation,
+      probabilities: { recoverable: 0.95, needs_older_details: 0.03, unclear: 0.02 },
+    },
+  };
+  assert.ok(qualifies(hintOnly, false));
+  assert.ok(!qualifies(hintOnly, true));
   const contradiction = {
     ...valid,
     continuation: { ...valid.continuation, choice: "needs_older_details" },
@@ -182,7 +192,7 @@ test("HTTP contract, output bound, status classification, and cancellation", asy
   assert.ok(!String(seen?.body).includes("fake-test-key"));
   const body = JSON.parse(String(seen?.body));
   assert.equal(body.model, "jev-latest");
-  assert.deepEqual(Object.keys(body.questions), ["phase", "continuation", "volatile_dependency"]);
+  assert.deepEqual(Object.keys(body.questions), ["phase", "continuation"]);
   for (const [status, kind] of [
     [401, "authentication"],
     [429, "rate-limit"],
