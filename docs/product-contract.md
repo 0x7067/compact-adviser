@@ -11,6 +11,9 @@ Each harness implementation owns its event handling, dependencies, installation,
 There is no percentage-of-context-window condition.
 - A size threshold makes a checkpoint eligible for judgment; it does not order compaction.
 - Inspect cheap local state before any TypeSafe Jev request.
+- TypeSafe/Jev snapshots consider up to the last 64 transcript messages, including tool results, clipped by existing byte budgets (about 14kB recent tail, per-message caps, 8kB user-constraint budget, and a 32kB request refuse path). Message count is not the tight payload bottleneck.
+- Long tool-result dumps keep a head and tail slice with an explicit middle omission marker so one result cannot consume the tail budget.
+- Optional TypeSafe request logging is off by default and can be enabled from the compact-adviser settings menu. When on, each request body is appended to a local jsonl log with existing secret redaction and never the API key.
 - Judge whether known next work can continue without exact older details, not whether context is merely large.
 - Uncertain, stale, interrupted, or failed judgments leave context alone.
 - Installing or loading the package is consent to send eligible checkpoint context to TypeSafe when a key is available and other product gates pass (mode, minimum context, idle session, and so on). Secrets are never settings values.

@@ -46,6 +46,7 @@ No credentials are written to the extension's configuration or session entries.
 ```text
 Mode: hint
 Minimum context: 40,000 tokens
+Log TypeSafe requests: off
 Reset minimum to 40,000
 Status
 Close
@@ -61,7 +62,7 @@ The confirmation states the new token count and that it applies to all sessions.
 Blank, zero, negative, fractional, exponential, suffixed (`40k`), nonnumeric, and unsafe-integer inputs are rejected.
 Use whole decimal tokens such as `60000`.
 A value at or above the current model's window is allowed but produces a warning; it is not silently clamped.
-Reset changes only the minimum, not the mode or session cooldowns.
+Reset changes only the minimum, not the mode, request logging, or session cooldowns.
 
 The configuration lives in `getAgentDir()/compact-adviser.json`, normally `~/.pi/agent/compact-adviser.json`:
 
@@ -70,11 +71,12 @@ The configuration lives in `getAgentDir()/compact-adviser.json`, normally `~/.pi
   "version": 1,
   "mode": "hint",
   "minContextTokens": 40000,
-  "autoAcknowledged": false
+  "autoAcknowledged": false,
+  "logRequests": false
 }
 ```
 
-Mode, minimum, and the automatic-mode acknowledgement survive restart, `/new`, `/resume`, compaction, and project changes.
+Mode, minimum, request logging, and the automatic-mode acknowledgement survive restart, `/new`, `/resume`, compaction, and project changes.
 A legacy `sharingConsent` field is ignored and dropped on the next save.
 Project files cannot silently override them.
 Atomic writes and a short cross-process lock prevent partial saves and lost concurrent field updates.
@@ -154,10 +156,12 @@ The separate summarization request costs tokens and can reduce prompt-cache reus
 
 ## Privacy and costs
 
-The request includes bounded user constraints, recent visible replies, short tool-result excerpts, an existing summary when present, saved-artifact names, and explicit omission markers.
+The request includes bounded user constraints, up to the last 64 recent visible replies and tool results clipped by existing byte budgets, short tool-result excerpts (long dumps keep a head and tail), an existing summary when present, saved-artifact names, and explicit omission markers.
 System prompts, hidden reasoning, images, raw environment variables, and complete transcripts are not sent by default.
 Known key patterns and obvious sensitive-file results are filtered, but this is **best-effort**, not comprehensive secret detection.
 Installing this package is consent to send eligible checkpoint context to TypeSafe; uninstall it or set mode Off if that is not acceptable.
+
+Optional request logging is off by default. Enable **Log TypeSafe requests** from `/compact-adviser` to append each judgment body to `getAgentDir()/compact-adviser-requests.jsonl` (normally `~/.pi/agent/compact-adviser-requests.jsonl`). The log is the redacted request body plus questions; it never includes the API key.
 
 Requests are capped at 32,000 serialized UTF-8 bytes, approximately an 8k-token budget for typical English input; Jev's tokenizer can differ.
 Oversized requests are refused locally rather than sent.

@@ -5,6 +5,7 @@ import { join } from "node:path";
 import test, { type TestContext } from "node:test";
 import { SessionManager } from "@earendil-works/pi-coding-agent";
 import { ConfigStore } from "../src/config.ts";
+import { RECENT_TAIL_MESSAGES } from "../src/context.ts";
 import { assistant, temp } from "./helpers.ts";
 
 const root = process.cwd();
@@ -29,7 +30,7 @@ function run(
     timestamp: Date.now(),
   });
   sm.appendMessage(assistant("Earlier exploration. ".repeat(6000)));
-  for (let i = 0; i < 8; i++) sm.appendMessage(assistant(`Earlier step ${i}`));
+  for (let i = 0; i < RECENT_TAIL_MESSAGES; i++) sm.appendMessage(assistant(`Earlier step ${i}`));
   const log = join(dir, "events.jsonl");
   if (installed) {
     const product = join(dir, "package");
@@ -110,7 +111,7 @@ test("signed Pi 0.82.0: native configuration input is actually prefilled", (t) =
     { send: "\r", wait: "Minimum context saved: 40,000 tokens" },
     { send: "\x1b[B\r", wait: "Minimum context tokens" },
     { send: "\x01\x0b60000\r", wait: "Minimum context saved: 60,000 tokens" },
-    { send: "\x1b[B\x1b[B\r", wait: "Minimum context saved: 40,000 tokens" },
+    { send: "\x1b[B\x1b[B\x1b[B\r", wait: "Minimum context saved: 40,000 tokens" },
   ]);
   assert.equal(r.store.read().minContextTokens, 40000);
   assert.ok(r.result.ok);

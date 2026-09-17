@@ -6,7 +6,8 @@ import type {
 import { type Config, ConfigStore, DEFAULT_CONFIG, type Mode, parseMinimum } from "./config.ts";
 import { snapshot } from "./context.ts";
 import { resolveTypesafeApiKey } from "./env.ts";
-import { type Judgment, judge, qualifies } from "./judge.ts";
+import { type Judgment, judge, qualifies, requestBody } from "./judge.ts";
+import { appendRequestLog, requestLogPath } from "./log.ts";
 import { promptMinimum } from "./minimum-input.ts";
 import {
   cooldownReason,
@@ -124,6 +125,13 @@ export function installAdviser(pi: ExtensionAPI, options: Options): void {
     if (request || eligible(ctx, config, state) === undefined) return;
     const view = snapshot(ctx);
     if (view.conversationTokens <= 20000 || view.checkpointKey === state.lastHintKey) return;
+    if (config.logRequests) {
+      try {
+        appendRequestLog(options.agentDir, requestBody(view.state));
+      } catch {
+        // Request logging must not replace or delay the judgment.
+      }
+    }
     const controller = new AbortController();
     request = controller;
     const epoch = generation,
@@ -321,8 +329,17 @@ export function installAdviser(pi: ExtensionAPI, options: Options): void {
       s = restoreState(ctx.sessionManager.getBranch()),
       t = ctx.getContextUsage()?.tokens;
     ctx.ui.notify(
-      `Mode: ${c.mode}. Minimum: ${c.minContextTokens.toLocaleString("en-US")} tokens. Context: ${t ?? "unknown"}. Key: ${key()?.trim() ? "present" : "missing"}. ${typeof t === "number" ? (cooldownReason(s, t, now()) ?? "No cooldown; semantic checks still apply.") : "Waiting for fresh model usage."} Settings: ${store.path}`,
+      `Mode: ${c.mode}. Minimum: ${c.minContextTokens.toLocaleString("en-US")} tokens. Context: ${t ?? "unknown"}. Key: ${key()?.trim() ? "present" : "missing"}. ${typeof t === "number" ? (cooldownReason(s, t, now()) ?? "No cooldown; semantic checks still apply.") : "Waiting for fresh model usage."} Request log: ${c.logRequests ? requestLogPath(options.agentDir) : "off"}. Settings: ${store.path}`,
       "info",
+    );
+  }
+  async function changeLogRequests(ctx: ExtensionCommandContext, enabled: boolean) {
+    save(
+      ctx,
+      { logRequests: enabled },
+      enabled
+        ? `TypeSafe request logging on (all sessions). ${requestLogPath(options.agentDir)}`
+        : "TypeSafe request logging off (all sessions).",
     );
   }
   async function menu(ctx: ExtensionCommandContext) {
@@ -331,6 +348,7 @@ export function installAdviser(pi: ExtensionAPI, options: Options): void {
       const labels = [
         `Mode: ${c.mode}`,
         `Minimum context: ${c.minContextTokens.toLocaleString("en-US")} tokens`,
+        `Log TypeSafe requests: ${c.logRequests ? "on" : "off"}`,
         "Reset minimum to 40,000",
         "Status",
         "Close",
@@ -362,7 +380,10 @@ export function installAdviser(pi: ExtensionAPI, options: Options): void {
             );
           }
         }
-      } else if (selected === labels[2]) minimum(ctx, "default");
+      } else if (selected === labels[2]) {
+        const logging = await ctx.ui.select("Log TypeSafe requests", ["Off (default)", "On"]);
+        if (logging) await changeLogRequests(ctx, logging.startsWith("On"));
+      } else if (selected === labels[3]) minimum(ctx, "default");
       else status(ctx);
     }
   }

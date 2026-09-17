@@ -11,6 +11,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { installAdviser } from "../src/adviser.ts";
 import { ConfigStore } from "../src/config.ts";
+import { RECENT_TAIL_MESSAGES } from "../src/context.ts";
 import { type Judgment, parseJudgment } from "../src/judge.ts";
 
 export function temp(t: TestContext): string {
@@ -64,6 +65,16 @@ export function assistant(
     timestamp: Date.now(),
   };
 }
+export function toolResult(text: string, toolName = "bash", toolCallId = "tool-1") {
+  return {
+    role: "toolResult" as const,
+    toolCallId,
+    toolName,
+    content: [{ type: "text" as const, text }],
+    isError: false,
+    timestamp: Date.now(),
+  };
+}
 export const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
 export function harness(
   t: TestContext,
@@ -80,7 +91,8 @@ export function harness(
     timestamp: 1,
   });
   sm.appendMessage(assistant("Earlier exploration. ".repeat(6000)));
-  for (let i = 0; i < 8; i++) sm.appendMessage(assistant(`Exploration checkpoint ${i}`));
+  for (let i = 0; i < RECENT_TAIL_MESSAGES; i++)
+    sm.appendMessage(assistant(`Exploration checkpoint ${i}`));
   sm.appendMessage(assistant("Report saved; the phase is complete. Next: read the saved report."));
   const handlers = new Map<string, ((event: unknown, ctx: ExtensionContext) => unknown)[]>();
   let command: ((args: string, ctx: ExtensionCommandContext) => Promise<void>) | undefined;
