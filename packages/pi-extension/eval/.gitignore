@@ -1,0 +1,6 @@
+# Session-derived judgment-eval data. Never commit transcripts, labels,
+# worksheets, results, ablation output, or a real corpus.
+local/*
+!local/.gitignore
+*.jsonl
+worksheet/
