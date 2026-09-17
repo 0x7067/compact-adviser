@@ -320,7 +320,7 @@ describe("jev client", () => {
     expect(calls[0]?.init.headers.Authorization).toBe("Bearer tsk-secret");
     const body = JSON.parse(calls[0]?.init.body ?? "{}");
     expect(body.model).toBe("jev-latest");
-    expect(Object.keys(body.questions)).toEqual(["phase", "continuation"]);
+    expect(Object.keys(body.questions)).toEqual(["phase"]);
     expect(calls[0]?.init.body.includes("tsk-secret")).toBe(false);
     expect(result.phase.choice).toBe("completed_checkpoint");
   });
@@ -384,12 +384,12 @@ describe("jev client", () => {
     ).toThrow(JudgeError);
     expect(
       mutate((a) => {
-        a.answers.continuation.choice = "unclear";
+        a.answers.phase.choice = "unclear";
       }),
     ).toThrow(JudgeError);
     expect(
       mutate((a) => {
-        a.answers.continuation.confidence = 1.2;
+        a.answers.phase.confidence = 1.2;
       }),
     ).toThrow(JudgeError);
     expect(
@@ -406,24 +406,9 @@ describe("jev client", () => {
 
   test("the phase floor decides and matches the Pi extension", () => {
     const j = (v: Parameters<typeof jevAnswer>[0]) => parseJudgment(jevAnswer(v));
-    expect(qualifies(j({ completed: 0.9, recoverable: 0.9 }), false)).toBe(true);
-    expect(qualifies(j({ completed: 0.89, recoverable: 0.99 }), false)).toBe(false);
-    expect(qualifies(j({ completed: 0.97, recoverable: 0.99 }), true)).toBe(false);
-    expect(qualifies(j({ completed: 0.98, recoverable: 0.98 }), true)).toBe(true);
-  });
-
-  test("a merely uncertain continuation does not block a confident phase, but a named dependency does", () => {
-    const answer = jevAnswer({ completed: 0.99, recoverable: 0.4 });
-    expect(qualifies(parseJudgment(answer), false)).toBe(true);
-    expect(qualifies(parseJudgment(answer), true)).toBe(true);
-    const depends = jevAnswer({ completed: 0.99 });
-    depends.answers.continuation = {
-      type: "choice",
-      choice: "needs_older_details",
-      confidence: 0.7,
-      probabilities: { needs_older_details: 0.7, recoverable: 0.2, unclear: 0.1 },
-    };
-    expect(qualifies(parseJudgment(depends), false)).toBe(false);
-    expect(qualifies(parseJudgment(depends), true)).toBe(false);
+    expect(qualifies(j({ completed: 0.9 }), false)).toBe(true);
+    expect(qualifies(j({ completed: 0.89 }), false)).toBe(false);
+    expect(qualifies(j({ completed: 0.97 }), true)).toBe(false);
+    expect(qualifies(j({ completed: 0.98 }), true)).toBe(true);
   });
 });

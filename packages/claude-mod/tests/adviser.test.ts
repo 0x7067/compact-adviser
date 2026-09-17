@@ -412,7 +412,7 @@ describe("automatic mode", () => {
     const w = autoWorld(on);
     w.respond = async () => ({
       status: 200,
-      text: JSON.stringify(jevAnswer({ completed: 0.95, recoverable: 0.95 })),
+      text: JSON.stringify(jevAnswer({ completed: 0.95 })),
     });
     await $.session.start(interactiveStart);
     await turnEnd($, w);

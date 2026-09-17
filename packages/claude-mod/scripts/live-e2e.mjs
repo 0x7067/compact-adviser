@@ -53,7 +53,6 @@ function jevAnswer() {
     model: "jev-1.13.0",
     answers: {
       phase: choice("completed_checkpoint", verdict.completed, ["still_in_progress", "unclear"]),
-      continuation: choice("recoverable", verdict.recoverable, ["needs_older_details", "unclear"]),
     },
     usage: { input_tokens: 2500, output_tokens: 0 },
   };

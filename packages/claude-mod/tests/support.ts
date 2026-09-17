@@ -32,12 +32,10 @@ export type Journal = {
 
 export type Verdict = {
   completed?: number;
-  recoverable?: number;
 };
 
 export function jevAnswer(v: Verdict = {}) {
   const completed = v.completed ?? 0.99;
-  const recoverable = v.recoverable ?? 0.99;
   const rest = (p: number) => Number(((1 - p) / 2).toFixed(6));
   return {
     model: "jev-1.13.0",
@@ -50,16 +48,6 @@ export function jevAnswer(v: Verdict = {}) {
           completed_checkpoint: completed,
           still_in_progress: rest(completed),
           unclear: 1 - completed - rest(completed),
-        },
-      },
-      continuation: {
-        type: "choice",
-        choice: "recoverable",
-        confidence: recoverable,
-        probabilities: {
-          recoverable,
-          needs_older_details: rest(recoverable),
-          unclear: 1 - recoverable - rest(recoverable),
         },
       },
     },
