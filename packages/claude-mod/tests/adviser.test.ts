@@ -249,7 +249,7 @@ describe("turn-end gates", () => {
     const w = world(on);
     w.respond = async () => ({
       status: 200,
-      text: JSON.stringify(jevAnswer({ recoverable: 0.68 })),
+      text: JSON.stringify(jevAnswer({ completed: 0.68 })),
     });
     await $.session.start(interactiveStart);
     await turnEnd($, w);
@@ -412,7 +412,7 @@ describe("automatic mode", () => {
     const w = autoWorld(on);
     w.respond = async () => ({
       status: 200,
-      text: JSON.stringify(jevAnswer({ completed: 0.95, recoverable: 0.95 })),
+      text: JSON.stringify(jevAnswer({ completed: 0.95 })),
     });
     await $.session.start(interactiveStart);
     await turnEnd($, w);

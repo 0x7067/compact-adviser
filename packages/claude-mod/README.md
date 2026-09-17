@@ -131,7 +131,6 @@ A new turn, any compaction, or a settings save invalidates an outstanding judgme
 One HTTPS request to `https://api.typesafe.ai/v1/systemone`, through Claude Code's host fetch, uses `jev-latest` and the Pi extension's two independent typed factors:
 
 1. Completed checkpoint, still in progress, or unclear.
-2. Known continuation is recoverable, needs exact older details, or unclear.
 
 Local code combines the results; Jev does not generate an explanation.
 Malformed responses, contradictory factors, API failures, and timeouts never produce a hint or a compaction.

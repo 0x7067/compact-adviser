@@ -126,7 +126,6 @@ Pi deliberately reports unknown usage immediately after compaction; the extensio
 One HTTPS request to `https://api.typesafe.ai/v1/systemone` uses `jev-latest` and two independent typed factors:
 
 1. Completed checkpoint, still in progress, or unclear.
-2. Known continuation is recoverable, needs exact older details, or unclear.
 
 Local code combines the results and renders the reason.
 Jev does not generate an explanatory paragraph.

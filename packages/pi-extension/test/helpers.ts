@@ -31,12 +31,6 @@ export const apiResponse = () => ({
       probabilities: { completed_checkpoint: 0.995, still_in_progress: 0.003, unclear: 0.002 },
       confidence: 0.99,
     },
-    continuation: {
-      type: "choice",
-      choice: "recoverable",
-      probabilities: { recoverable: 0.995, needs_older_details: 0.003, unclear: 0.002 },
-      confidence: 0.99,
-    },
   },
 });
 export function success(): Judgment {

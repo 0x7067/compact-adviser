@@ -9,7 +9,6 @@ export default function fixture(pi: ExtensionAPI) {
     log({event:"jev",body:JSON.parse(String(init?.body))});
     return new Response(JSON.stringify({model:"jev-fixture",usage:{input_tokens:2000,output_tokens:60},answers:{
       phase:{type:"choice",choice:"completed_checkpoint",probabilities:{completed_checkpoint:0.999,still_in_progress:0.0005,unclear:0.0005},confidence:0.999},
-      continuation:{type:"choice",choice:"recoverable",probabilities:{recoverable:0.999,needs_older_details:0.0005,unclear:0.0005},confidence:0.999},
     }}));
   };
   pi.registerProvider("compact-fixture",{baseUrl:"http://127.0.0.1:1",apiKey:"fixture-not-a-secret",api:"compact-fixture",models:[{id:"local",name:"Local test provider",reasoning:false,input:["text"],cost:{input:0,output:0,cacheRead:0,cacheWrite:0},contextWindow:272000,maxTokens:1000}],streamSimple:(model)=>{

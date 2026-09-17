@@ -320,7 +320,7 @@ describe("jev client", () => {
     expect(calls[0]?.init.headers.Authorization).toBe("Bearer tsk-secret");
     const body = JSON.parse(calls[0]?.init.body ?? "{}");
     expect(body.model).toBe("jev-latest");
-    expect(Object.keys(body.questions)).toEqual(["phase", "continuation"]);
+    expect(Object.keys(body.questions)).toEqual(["phase"]);
     expect(calls[0]?.init.body.includes("tsk-secret")).toBe(false);
     expect(result.phase.choice).toBe("completed_checkpoint");
   });
@@ -384,12 +384,12 @@ describe("jev client", () => {
     ).toThrow(JudgeError);
     expect(
       mutate((a) => {
-        a.answers.continuation.choice = "unclear";
+        a.answers.phase.choice = "unclear";
       }),
     ).toThrow(JudgeError);
     expect(
       mutate((a) => {
-        a.answers.continuation.confidence = 1.2;
+        a.answers.phase.confidence = 1.2;
       }),
     ).toThrow(JudgeError);
     expect(
@@ -404,13 +404,11 @@ describe("jev client", () => {
     ).toThrow(JudgeError);
   });
 
-  test("hint and automatic floors match the Pi extension", () => {
+  test("the phase floor decides and matches the Pi extension", () => {
     const j = (v: Parameters<typeof jevAnswer>[0]) => parseJudgment(jevAnswer(v));
-    expect(qualifies(j({ completed: 0.9, recoverable: 0.9 }), false)).toBe(true);
-    expect(qualifies(j({ completed: 0.89, recoverable: 0.99 }), false)).toBe(false);
-    expect(qualifies(j({ completed: 0.99, recoverable: 0.89 }), false)).toBe(false);
-    expect(qualifies(j({ completed: 0.97, recoverable: 0.99 }), true)).toBe(false);
-    expect(qualifies(j({ completed: 0.98, recoverable: 0.98 }), true)).toBe(true);
-    expect(qualifies(j({ completed: 0.99, recoverable: 0.97 }), true)).toBe(false);
+    expect(qualifies(j({ completed: 0.9 }), false)).toBe(true);
+    expect(qualifies(j({ completed: 0.89 }), false)).toBe(false);
+    expect(qualifies(j({ completed: 0.97 }), true)).toBe(false);
+    expect(qualifies(j({ completed: 0.98 }), true)).toBe(true);
   });
 });
