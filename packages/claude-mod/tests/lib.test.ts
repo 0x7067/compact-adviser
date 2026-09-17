@@ -2,6 +2,7 @@
 // cooldowns, the bounded judge input, and the Jev client with an injected transport.
 import { describe, expect, test } from "claude-code/testing";
 import { DEFAULT_MINIMUM, parseConsent, parseMinimum, readConfig } from "../lib/config.ts";
+import { parseDotenvKey } from "../lib/env.ts";
 import {
   ENDPOINT,
   JudgeError,
@@ -84,6 +85,36 @@ describe("settings", () => {
     expect(() =>
       parseConsent({ version: 1, sharingConsent: "yes", autoAcknowledged: false }),
     ).toThrow("consent");
+  });
+});
+
+describe("cwd .env key", () => {
+  test("last TYPESAFE_API_KEY assignment wins; comments and blanks are ignored", () => {
+    expect(
+      parseDotenvKey(
+        "# TYPESAFE_API_KEY=commented\n\nOTHER=nope\nTYPESAFE_API_KEY=first\nTYPESAFE_API_KEY=second\n",
+        "TYPESAFE_API_KEY",
+      ),
+    ).toBe("second");
+    expect(parseDotenvKey("", "TYPESAFE_API_KEY")).toBeUndefined();
+  });
+
+  test("export and declare -x prefixes and one matching quote layer are stripped", () => {
+    expect(parseDotenvKey("export TYPESAFE_API_KEY=from-export\n", "TYPESAFE_API_KEY")).toBe(
+      "from-export",
+    );
+    expect(parseDotenvKey('declare -x TYPESAFE_API_KEY="from-declare"\n', "TYPESAFE_API_KEY")).toBe(
+      "from-declare",
+    );
+    expect(parseDotenvKey("TYPESAFE_API_KEY='from-single'\n", "TYPESAFE_API_KEY")).toBe(
+      "from-single",
+    );
+    expect(parseDotenvKey('TYPESAFE_API_KEY="from-double"\n', "TYPESAFE_API_KEY")).toBe(
+      "from-double",
+    );
+    expect(
+      parseDotenvKey('export TYPESAFE_API_KEY="from-export-quoted"\n', "TYPESAFE_API_KEY"),
+    ).toBe("from-export-quoted");
   });
 });
 

@@ -2,7 +2,7 @@
 
 ## Conversation data
 
-The Pi extension sends selected conversation text to TypeSafe only after explicit saved consent and with a key supplied by the launch environment.
+The Pi extension sends selected conversation text to TypeSafe only after explicit saved consent and with a key supplied by the launch environment or by `TYPESAFE_API_KEY` in a `.env` file in the working directory when the launch environment does not set one.
 It never writes the key into settings or session entries.
 Redaction is best-effort, not a guarantee; do not enable sharing for material that must not leave the machine.
 The fixed HTTPS endpoint rejects redirects, requests and responses are bounded, and errors never substitute an affirmative judgment.
@@ -19,7 +19,7 @@ Neither loads the other's runtime or reads the other's storage.
 
 ## Claude Code mod
 
-The mod applies the same conversation-data rules as the Pi extension: explicit saved consent, a key only from Claude Code's launch environment (never stored or displayed), best-effort redaction, a bounded request, and no affirmative judgment substituted for an error.
+The mod applies the same conversation-data rules as the Pi extension: explicit saved consent, a key from Claude Code's launch environment or from `TYPESAFE_API_KEY` in a working-directory `.env` when the launch environment does not set one (never stored or displayed), best-effort redaction, a bounded request, and no affirmative judgment substituted for an error.
 Requests go through Claude Code's host fetch (`$.http.fetch`), which does not expose redirect control to plugins; the fixed endpoint is `https://api.typesafe.ai/v1/systemone`.
 The only endpoint override, `COMPACT_ADVISER_TEST_ENDPOINT`, exists for the live regression and is ignored unless it is an `http://127.0.0.1:<port>/` URL.
 Consent and the automatic-mode acknowledgement are kept in the plugin's own store, not in `/config`, so they cannot be granted without the disclosure dialog.

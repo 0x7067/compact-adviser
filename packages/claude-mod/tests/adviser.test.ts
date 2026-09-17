@@ -142,6 +142,31 @@ describe("turn-end gates", () => {
     expect(w.journal.requests).toHaveLength(0);
   });
 
+  test("cwd .env supplies the key when the host env is empty", async ($, on) => {
+    const w = world(on, {
+      key: undefined,
+      dotenv:
+        '# ignore\nOTHER=nope\nTYPESAFE_API_KEY=from-dotenv\ndeclare -x TYPESAFE_API_KEY="from-dotenv-last"\n',
+    });
+    await $.session.start(interactiveStart);
+    expect(w.journal.statuses.at(-1)).toBe("HINT · min 40,000");
+    expect(w.journal.fsReads.some((path) => path === ".env" || path.endsWith("/.env"))).toBe(true);
+    await turnEnd($, w);
+    expect(w.journal.requests).toHaveLength(1);
+    expect(w.journal.requests[0]?.headers.Authorization).toBe("Bearer from-dotenv-last");
+    expect(w.journal.requests[0]?.body.includes("from-dotenv-last")).toBe(false);
+  });
+
+  test("a host env key wins over cwd .env", async ($, on) => {
+    const w = world(on, { dotenv: "TYPESAFE_API_KEY=from-dotenv\n" });
+    await $.session.start(interactiveStart);
+    expect(w.journal.fsReads).toEqual([]);
+    await turnEnd($, w);
+    expect(w.journal.requests).toHaveLength(1);
+    expect(w.journal.requests[0]?.headers.Authorization).toBe(`Bearer ${KEY}`);
+    expect(w.journal.requests[0]?.body.includes("from-dotenv")).toBe(false);
+  });
+
   test("subagent, interrupted, errored, and empty-answer turns are not checkpoints", async ($, on) => {
     const w = world(on);
     await $.session.start(interactiveStart);

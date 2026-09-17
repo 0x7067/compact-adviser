@@ -26,6 +26,7 @@ export type Journal = {
   compactions: { instructions?: string }[];
   messageReads: number;
   usageReads: number;
+  fsReads: string[];
 };
 
 export type Verdict = {
@@ -93,6 +94,8 @@ export type WorldOptions = {
   mode?: string;
   minimum?: number;
   store?: Record<string, unknown>;
+  /** Text `$.fs.read(".env")` should return; omit to treat the file as missing. */
+  dotenv?: string;
 };
 
 /** A transcript whose own text is well over the 20k-token useful-history floor. */
@@ -165,6 +168,7 @@ export function world(on: On, options: WorldOptions = {}): World {
     compactions: [],
     messageReads: 0,
     usageReads: 0,
+    fsReads: [],
   };
   const rows = new Map<string, string | number>([
     [`${PLUGIN}.mode`, options.mode ?? "hint"],
@@ -294,6 +298,12 @@ export function world(on: On, options: WorldOptions = {}): World {
   on("prompt.suggest", async (_$, e) => {
     journal.suggestions.push(e.text);
     return { isShown: true };
+  });
+  on("fs.read", async (_$, e, next) => {
+    const envFile = e.path === ".env" || e.path.endsWith("/.env");
+    if (envFile) journal.fsReads.push(e.path);
+    if (envFile && options.dotenv !== undefined) return { value: options.dotenv };
+    return next(e);
   });
   on("http.fetch", async (_$, e) => {
     const init = (e.init ?? {}) as { headers?: Record<string, string>; body?: string };

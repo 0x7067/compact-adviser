@@ -5,6 +5,7 @@ import test from "node:test";
 import { lockSync } from "proper-lockfile";
 import { ConfigStore, DEFAULT_CONFIG, parseMinimum } from "../src/config.ts";
 import { snapshot } from "../src/context.ts";
+import { parseDotenvKey, resolveTypesafeApiKey } from "../src/env.ts";
 import {
   ENDPOINT,
   judge,
@@ -153,6 +154,42 @@ test("HTTP contract, output bound, status classification, and cancellation", asy
       throw new Error("unexpected");
     }) as typeof fetch),
     /network/,
+  );
+});
+
+test("cwd .env supplies TYPESAFE_API_KEY when process env is empty and is ignored when env is set", (t) => {
+  const dir = temp(t);
+  writeFileSync(
+    join(dir, ".env"),
+    "# TYPESAFE_API_KEY=commented\n\nOTHER=nope\nTYPESAFE_API_KEY=from-dotenv\nTYPESAFE_API_KEY=from-dotenv-last\n",
+  );
+  assert.equal(resolveTypesafeApiKey({ TYPESAFE_API_KEY: "" }, dir), "from-dotenv-last");
+  assert.equal(resolveTypesafeApiKey({}, dir), "from-dotenv-last");
+  assert.equal(resolveTypesafeApiKey({ TYPESAFE_API_KEY: "from-env" }, dir), "from-env");
+  assert.equal(resolveTypesafeApiKey({ TYPESAFE_API_KEY: "   " }, dir), "from-dotenv-last");
+  assert.equal(resolveTypesafeApiKey({}, temp(t)), undefined);
+  assert.equal(parseDotenvKey("TYPESAFE_API_KEY=only\n", "TYPESAFE_API_KEY"), "only");
+});
+
+test("cwd .env accepts export, declare -x, and one matching quote layer", (t) => {
+  const dir = temp(t);
+  writeFileSync(join(dir, ".env"), 'declare -x TYPESAFE_API_KEY="from-declare"\n');
+  assert.equal(resolveTypesafeApiKey({}, dir), "from-declare");
+  writeFileSync(join(dir, ".env"), "export TYPESAFE_API_KEY='from-export'\n");
+  assert.equal(resolveTypesafeApiKey({}, dir), "from-export");
+  writeFileSync(join(dir, ".env"), "export TYPESAFE_API_KEY=from-export-plain\n");
+  assert.equal(resolveTypesafeApiKey({ TYPESAFE_API_KEY: "from-env" }, dir), "from-env");
+  assert.equal(
+    parseDotenvKey('TYPESAFE_API_KEY="from-double"\n', "TYPESAFE_API_KEY"),
+    "from-double",
+  );
+  assert.equal(
+    parseDotenvKey("TYPESAFE_API_KEY='from-single'\n", "TYPESAFE_API_KEY"),
+    "from-single",
+  );
+  assert.equal(
+    parseDotenvKey('export TYPESAFE_API_KEY="from-export-quoted"\n', "TYPESAFE_API_KEY"),
+    "from-export-quoted",
   );
 });
 
