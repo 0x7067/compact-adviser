@@ -23,8 +23,9 @@ Invalid values and cancellation preserve existing settings; failed saves are rep
 | Package | State | Installation |
 | --- | --- | --- |
 | `packages/pi-extension` | Pi implementation | Install this package path with `pi install` |
-| `packages/claude-mod` | Reserved, not implemented | No install command until a Claude-specific implementation exists |
+| `packages/claude-mod` | Claude Code mod (early-access function-hooks API) | Load this package path with `claude --plugin-dir` and `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1` |
 
 Pi uses its own agent-directory `compact-adviser.json` and Pi session custom entries.
-The future Claude implementation must use separate harness-owned storage and must not read or mutate those Pi records.
+The Claude Code mod uses its own `userConfig` options (`mode`, `minContextTokens`) in Claude Code's settings, and its own plugin store for consent, the automatic-mode acknowledgement, and per-session cooldowns.
+Neither implementation reads or mutates the other's records.
 No harness installs or loads the other harness's runtime.

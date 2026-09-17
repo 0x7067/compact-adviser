@@ -14,8 +14,18 @@ Hint mode is the default; the normal Pi compaction path and other extensions' ho
 ## Package separation
 
 The Pi implementation lives only in `packages/pi-extension` and owns its Pi-specific configuration and session entries.
-The reserved `packages/claude-mod` contains no runtime or hooks.
-A future Claude implementation must use separate installation and mutable storage.
+The Claude Code implementation lives only in `packages/claude-mod` and owns its `userConfig` options and plugin store.
+Neither loads the other's runtime or reads the other's storage.
+
+## Claude Code mod
+
+The mod applies the same conversation-data rules as the Pi extension: explicit saved consent, a key only from Claude Code's launch environment (never stored or displayed), best-effort redaction, a bounded request, and no affirmative judgment substituted for an error.
+Requests go through Claude Code's host fetch (`$.http.fetch`), which does not expose redirect control to plugins; the fixed endpoint is `https://api.typesafe.ai/v1/systemone`.
+The only endpoint override, `COMPACT_ADVISER_TEST_ENDPOINT`, exists for the live regression and is ignored unless it is an `http://127.0.0.1:<port>/` URL.
+Consent and the automatic-mode acknowledgement are kept in the plugin's own store, not in `/config`, so they cannot be granted without the disclosure dialog.
+
+The mods API is early access and default-off; the module is a complete no-op unless `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS` is exactly `1`.
+Its development dependencies are TypeScript and Biome only; it has no runtime dependency.
 
 ## Accepted development-only dependency hygiene item
 

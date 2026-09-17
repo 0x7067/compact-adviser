@@ -1,0 +1,655 @@
+// compact-adviser for Claude Code: the hooks module of the `compact-adviser` mod.
+//
+// A Claude Code "mod" is a plugin whose behavior lives in one hooks module. Claude Code
+// may load it through its rollout flag or CLAUDE_CODE_ENABLE_FUNCTION_HOOKS, but every
+// handler requires that variable to equal `1`, so rollout-only loading is a no-op.
+//
+// This is the only file that touches the engine interface `$`. The decisions live in
+// ../lib (settings, cooldowns, the bounded judge input, and the Jev client), which the
+// suites under ../tests exercise through `claude plugin test`. ../README.md owns the
+// user-facing contract and ../../../docs/product-contract.md the shared semantics.
+//
+// Two engine facts shape this file:
+// - Saving a `userConfig` row through `$.config.set` hot-reloads this module and raises
+//   `session.start` again, so module variables are per-reload scratch and every fact a
+//   cooldown depends on lives in `$.store`.
+// - `$.session.compact` runs through every hook but the caller's, so this module's own
+//   `session.compact` hook never sees its own automatic compaction; that path resets the
+//   session's counters itself.
+import type { EngineInterface, PluginOptions, Register } from "claude-code";
+import {
+  CONSENT_STORE_KEY,
+  type Config,
+  type Consent,
+  DEFAULT_MINIMUM,
+  formatTokens,
+  MINIMUM_KEY,
+  MODE_KEY,
+  type Mode,
+  parseConsent,
+  parseMinimum,
+  readConfig,
+} from "../lib/config.ts";
+import { JudgeError, judge, qualifies } from "../lib/judge.ts";
+import { snapshot } from "../lib/snapshot.ts";
+import {
+  backoff,
+  completeExchange,
+  cooldownReason,
+  initialState,
+  restoreState,
+  type SessionState,
+  sessionKey,
+  staleSessionKeys,
+} from "../lib/state.ts";
+
+const COMMAND = "compact-adviser";
+const PANE_ID = "compact-adviser";
+const HINT = "Potential session boundary detected. Run /compact to save tokens.";
+const COMPACT_INSTRUCTIONS =
+  "The session reached a natural boundary; keep the current work, pending tasks, referenced files, and the next step exact.";
+const PENDING_NOTICE_KEY = "pendingNotice";
+const LOOPBACK_ENDPOINT = /^http:\/\/127\.0\.0\.1:\d{1,5}\/[\x21-\x7e]*$/;
+const USAGE =
+  "Use /compact-adviser, auto, hint, off, status, threshold <tokens|default>, sharing <on|off>, snooze or dismiss.";
+
+// Per module environment (a hot reload starts fresh; see the header).
+let activation: Promise<boolean> | undefined;
+// The host-validated options this environment loaded with (a save reloads it with new ones).
+let loadedOptions: PluginOptions = {};
+let interactive = false;
+let generation = 0;
+let judging = false;
+let compacting = false;
+let hintVisible = false;
+let diagnostic = "";
+let minimumDraft: { text: string; error: string } | undefined;
+let statusDetails: string | undefined;
+
+function isActivated($: EngineInterface): Promise<boolean> {
+  if (activation === undefined) {
+    activation = $.env.get("CLAUDE_CODE_ENABLE_FUNCTION_HOOKS").then(
+      (value) => value === "1",
+      () => false,
+    );
+  }
+  return activation;
+}
+
+async function apiKey($: EngineInterface): Promise<string> {
+  return ((await $.env.get("TYPESAFE_API_KEY")) ?? "").trim();
+}
+
+/** A loopback-only endpoint override for the live regression's local TypeSafe fixture. */
+async function testEndpoint($: EngineInterface): Promise<string | undefined> {
+  const value = await $.env.get("COMPACT_ADVISER_TEST_ENDPOINT");
+  return value !== undefined && LOOPBACK_ENDPOINT.test(value) ? value : undefined;
+}
+
+async function loadConfig($: EngineInterface): Promise<Config> {
+  return readConfig(await $.config.list(), await $.store.get(CONSENT_STORE_KEY), loadedOptions);
+}
+
+async function loadConsent($: EngineInterface): Promise<Consent> {
+  return parseConsent(await $.store.get(CONSENT_STORE_KEY));
+}
+
+async function loadState($: EngineInterface): Promise<{ key: string; state: SessionState }> {
+  const key = sessionKey(await $.session.id());
+  return { key, state: restoreState(await $.store.get(key), await $.clock.now()) };
+}
+
+async function checkpointKey(text: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function judgeFailureMessage(error: unknown): string {
+  // Claude Code refuses plugin network access outright under
+  // CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC; say so instead of a generic network error.
+  if (String((error as { cause?: unknown })?.cause).includes("nonessential network traffic")) {
+    return "TypeSafe requests are refused: Claude Code has nonessential network traffic disabled. Context left unchanged.";
+  }
+  return error instanceof JudgeError
+    ? error.message
+    : "TypeSafe judgment unavailable; context left unchanged.";
+}
+
+function notice($: EngineInterface, message: string): void {
+  if (diagnostic === message) return;
+  diagnostic = message;
+  $.ui.toast(message, { timeoutMs: 8000 });
+}
+
+async function readiness($: EngineInterface, config: Config): Promise<string> {
+  if (config.mode === "off") return "";
+  if (!config.sharingConsent) return " · sharing off";
+  if (!(await apiKey($))) return " · key missing";
+  if (config.mode === "auto" && !config.autoAcknowledged) return " · auto not confirmed";
+  return "";
+}
+
+/** The pinned indicator, as the Pi extension's status: mode, minimum, and readiness. */
+async function display($: EngineInterface, config?: Config): Promise<void> {
+  if (!interactive || hintVisible) return;
+  try {
+    const c = config ?? (await loadConfig($));
+    $.ui.status(
+      `${c.mode.toUpperCase()} · min ${formatTokens(c.minContextTokens)}${await readiness($, c)}`,
+    );
+  } catch {
+    $.ui.status("settings error");
+  }
+}
+
+async function invalidate($: EngineInterface): Promise<void> {
+  generation++;
+  if (hintVisible) {
+    hintVisible = false;
+    await display($);
+  }
+}
+
+async function eligible(
+  $: EngineInterface,
+  config: Config,
+  state: SessionState,
+  tokens: number | undefined,
+  now: number,
+): Promise<boolean> {
+  return (
+    interactive &&
+    !compacting &&
+    config.mode !== "off" &&
+    config.sharingConsent &&
+    (await apiKey($)) !== "" &&
+    typeof tokens === "number" &&
+    Number.isFinite(tokens) &&
+    tokens >= config.minContextTokens &&
+    cooldownReason(state, tokens, now) === undefined
+  );
+}
+
+/** The scheduled half of a turn end: judge, then hint or (opt-in) compact. */
+async function judgeCheckpoint($: EngineInterface, epoch: number): Promise<void> {
+  if (epoch !== generation || judging || compacting) return;
+  judging = true;
+  try {
+    const initial = await loadConfig($);
+    const view = snapshot(await $.session.messages());
+    if (view.conversationTokens <= 20000) return;
+    const fingerprint = await checkpointKey(view.checkpointText);
+    if ((await loadState($)).state.lastHintKey === fingerprint) return;
+    const endpoint = await testEndpoint($);
+    let result: Awaited<ReturnType<typeof judge>>;
+    try {
+      result = await judge(view.state, await apiKey($), {
+        fetch: (url, init) => $.http.fetch(url, init),
+        sleep: (ms) => $.clock.sleep(ms),
+        ...(endpoint ? { endpoint } : {}),
+      });
+    } catch (error) {
+      if (epoch !== generation) return;
+      const { key, state } = await loadState($);
+      await $.store.set(key, backoff(state, await $.clock.now()));
+      notice($, judgeFailureMessage(error));
+      return;
+    }
+    if (epoch !== generation) return;
+    const latest = await loadConfig($);
+    const { key, state: current } = await loadState($);
+    const now = await $.clock.now();
+    const { context } = await $.session.usage();
+    if (
+      JSON.stringify(latest) !== JSON.stringify(initial) ||
+      !(await eligible($, latest, current, context.tokens, now))
+    )
+      return;
+    let state: SessionState = { ...current, failures: 0, retryAfter: 0, updatedAt: now };
+    const auto = latest.mode === "auto";
+    if (!qualifies(result, auto) || (auto && (!latest.autoAcknowledged || !view.autoCoverage))) {
+      await $.store.set(key, state);
+      return;
+    }
+    diagnostic = "";
+    if (!auto) {
+      state = { ...state, lastHintAt: state.completed, lastHintKey: fingerprint };
+      await $.store.set(key, state);
+      if (epoch !== generation) return;
+      hintVisible = true;
+      $.ui.status(HINT);
+      $.ui.toast(HINT, { timeoutMs: 8000 });
+      void $.prompt.suggest({ text: "/compact" }).catch(() => undefined);
+      return;
+    }
+    await $.store.set(key, state);
+    // No await between this last identity check and the compaction request.
+    if (epoch !== generation || compacting) return;
+    compacting = true;
+    // A status line, not a toast: the host drops a toast within two seconds of the last,
+    // which would swallow the completion notice of a quick compaction.
+    $.ui.status("compacting at a checkpoint (experimental auto)…");
+    let failure: string | undefined;
+    let tokens: { before?: number; after?: number } = {};
+    try {
+      const compacted = await $.session.compact({ instructions: COMPACT_INSTRUCTIONS });
+      if (compacted.skip !== undefined) failure = compacted.skip;
+      else tokens = { before: compacted.tokensBefore, after: compacted.tokensAfter };
+    } catch (error) {
+      failure = error instanceof Error ? error.message : String(error);
+    } finally {
+      compacting = false;
+    }
+    const after = await $.clock.now();
+    if (failure !== undefined) {
+      const { state: latestState } = await loadState($);
+      await $.store.set(key, { ...latestState, retryAfter: after + 60000, updatedAt: after });
+      notice(
+        $,
+        "Compaction failed or was cancelled. No immediate retry; Claude Code remains in control.",
+      );
+      await display($);
+      return;
+    }
+    generation++;
+    await $.store.set(key, initialState(true, after));
+    const completed =
+      tokens.before !== undefined && tokens.after !== undefined
+        ? `compaction completed: ${formatTokens(tokens.before)} to ${formatTokens(tokens.after)} tokens.`
+        : "compaction completed.";
+    // The dim transcript line (never sent to the model) records the automatic action even
+    // when the host throttles the toast.
+    $.ui.log(`compact-adviser: automatic ${completed}`);
+    $.ui.toast(completed);
+    await display($);
+  } finally {
+    judging = false;
+  }
+}
+
+/** The synchronous half of a turn end: count the exchange and run the cheap gates. */
+async function settle($: EngineInterface): Promise<void> {
+  const { context } = await $.session.usage();
+  const now = await $.clock.now();
+  const { key, state: stored } = await loadState($);
+  const state = completeExchange(stored, context.tokens, now);
+  await $.store.set(key, state);
+  let config: Config;
+  try {
+    config = await loadConfig($);
+  } catch (error) {
+    notice($, error instanceof Error ? error.message : "Cannot read compact-adviser settings.");
+    await display($);
+    return;
+  }
+  await display($, config);
+  if (judging || !(await eligible($, config, state, context.tokens, now))) return;
+  const epoch = generation;
+  $.clock.after(0, () => {
+    void judgeCheckpoint($, epoch).catch(() =>
+      notice($, "Compact adviser could not inspect this checkpoint; context left unchanged."),
+    );
+  });
+}
+
+async function saveRow(
+  $: EngineInterface,
+  key: string,
+  value: string | number,
+  message: string,
+): Promise<boolean> {
+  await invalidate($);
+  // A saved row hot-reloads this module, which drops this environment's later toasts, so
+  // the confirmation is left for the reloaded environment to show at its session.start.
+  await $.store.set(PENDING_NOTICE_KEY, { message, at: await $.clock.now() });
+  const result = await $.config.set({ key, value });
+  if (result.deny !== undefined) {
+    await $.store.delete(PENDING_NOTICE_KEY);
+    $.ui.toast(`Not saved: ${result.deny}`, { timeoutMs: 8000 });
+    return false;
+  }
+  diagnostic = "";
+  await showPendingNotice($);
+  await display($);
+  return true;
+}
+
+/** Shows and clears a save confirmation, whichever environment gets to it first. */
+async function showPendingNotice($: EngineInterface): Promise<void> {
+  const pending = (await $.store.get(PENDING_NOTICE_KEY)) as { message?: unknown; at?: unknown };
+  if (pending === undefined) return;
+  await $.store.delete(PENDING_NOTICE_KEY);
+  const fresh = typeof pending.at === "number" && (await $.clock.now()) - pending.at < 30000;
+  if (fresh && typeof pending.message === "string") {
+    $.ui.toast(pending.message, { timeoutMs: 6000 });
+  }
+}
+
+async function saveConsent($: EngineInterface, patch: Partial<Omit<Consent, "version">>) {
+  await invalidate($);
+  await $.store.set(CONSENT_STORE_KEY, { ...(await loadConsent($)), ...patch });
+  diagnostic = "";
+}
+
+function openPane($: EngineInterface): Promise<void> {
+  return $.ui.open({
+    id: PANE_ID,
+    title: "Compact adviser (saved for all sessions)",
+    focus: true,
+    closeOnEscape: true,
+    rows: 9,
+  });
+}
+
+/**
+ * Asks in the engine's dialog. The dialog takes the keyboard from an open settings pane
+ * and hands it to the prompt when it closes, so a pane that asked requests it back.
+ */
+async function confirm(
+  $: EngineInterface,
+  question: string,
+  yes: string,
+  header: string,
+  fromPane: boolean,
+) {
+  try {
+    return (await $.ui.ask(question, { options: [yes, "Cancel"], header })) === yes;
+  } catch {
+    return false;
+  } finally {
+    if (fromPane) await openPane($).catch(() => undefined);
+  }
+}
+
+async function changeMode($: EngineInterface, mode: Mode, fromPane = false): Promise<void> {
+  if (mode === "auto") {
+    if (!(await loadConsent($)).autoAcknowledged) {
+      const confirmed = await confirm(
+        $,
+        "Automatic mode persists across all Claude Code sessions and projects. Compaction is lossy and timing accuracy is not proven. It only acts at eligible checkpoints; it does not compact immediately. Enable experimental automatic compaction?",
+        "Enable automatic mode",
+        "Auto mode",
+        fromPane,
+      );
+      if (!confirmed) return;
+      await saveConsent($, { autoAcknowledged: true });
+    }
+    await saveRow(
+      $,
+      MODE_KEY,
+      "auto",
+      "Automatic mode saved (all sessions). TypeSafe sharing and a key are still required.",
+    );
+    return;
+  }
+  await saveRow(
+    $,
+    MODE_KEY,
+    mode,
+    `${mode === "hint" ? "Hints only" : "Off"} saved (all sessions). Claude Code's built-in compaction is unchanged.`,
+  );
+}
+
+/** Validates and saves a minimum; throws the validation message for the caller to show. */
+async function changeMinimum($: EngineInterface, text: string): Promise<boolean> {
+  const count = text === "default" ? DEFAULT_MINIMUM : parseMinimum(text);
+  const { context } = await $.session.usage();
+  const warning =
+    count >= context.window
+      ? ` Warning: this is at or above the active model's ${formatTokens(context.window)}-token window, so advice will not trigger before Claude Code's own compaction.`
+      : "";
+  return saveRow(
+    $,
+    MINIMUM_KEY,
+    count,
+    `Minimum context saved: ${formatTokens(count)} tokens (all sessions).${warning}`,
+  );
+}
+
+async function changeSharing($: EngineInterface, on: boolean, fromPane = false): Promise<void> {
+  if (
+    on &&
+    !(await confirm(
+      $,
+      "Eligible checkpoints send bounded user requests, recent replies, short tool excerpts and artifact names to api.typesafe.ai. Secret filtering is best-effort, not a guarantee. System prompts, hidden reasoning and images are excluded. This permission persists across projects. Set TYPESAFE_API_KEY in Claude Code's launch environment; do not paste it here. Send selected conversation text to TypeSafe?",
+      "Allow sharing",
+      "TypeSafe",
+      fromPane,
+    ))
+  )
+    return;
+  await saveConsent($, { sharingConsent: on });
+  $.ui.toast(`TypeSafe conversation sharing ${on ? "enabled" : "disabled"} (all sessions).`, {
+    timeoutMs: 6000,
+  });
+  await display($);
+}
+
+async function statusText($: EngineInterface): Promise<string> {
+  const config = await loadConfig($);
+  const { state } = await loadState($);
+  const usage = await $.session.usage({ breakdown: "summary" });
+  const tokens = usage.context.tokens;
+  const breakdown = usage.context.breakdown;
+  const engine =
+    breakdown === undefined
+      ? ""
+      : breakdown.isAutoCompactEnabled && breakdown.autoCompactThreshold !== undefined
+        ? ` Claude Code auto-compacts at ${formatTokens(breakdown.autoCompactThreshold)} tokens.`
+        : " Claude Code auto-compact is off.";
+  const cooldown =
+    typeof tokens === "number"
+      ? (cooldownReason(state, tokens, await $.clock.now()) ??
+        "No cooldown; semantic checks still apply.")
+      : "Waiting for fresh model usage.";
+  return `Mode: ${config.mode}${config.mode === "auto" && !config.autoAcknowledged ? " (not confirmed)" : ""}. Minimum: ${formatTokens(config.minContextTokens)} tokens. Context: ${typeof tokens === "number" ? formatTokens(tokens) : "unknown"}. Sharing: ${config.sharingConsent ? "on" : "off"}. Key: ${(await apiKey($)) ? "present" : "missing"}. ${cooldown}${engine} Settings: /config (compact-adviser rows) and /compact-adviser.`;
+}
+
+async function snoozeOrDismiss($: EngineInterface, command: "snooze" | "dismiss") {
+  const { key, state } = await loadState($);
+  await invalidate($);
+  if (command === "snooze") {
+    await $.store.set(key, {
+      ...state,
+      snoozeUntil: state.completed + 4,
+      updatedAt: await $.clock.now(),
+    });
+  }
+  $.ui.toast(
+    command === "snooze" ? "Advice snoozed for three completed exchanges." : "Hint dismissed.",
+  );
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Could not save settings.";
+}
+
+export const register: Register = (on, options) => {
+  loadedOptions = options;
+  on("session.start", async ($, e, next) => {
+    if (!(await isActivated($))) return next(e);
+    interactive = e.isInteractive;
+    generation++;
+    judging = false;
+    compacting = false;
+    hintVisible = false;
+    await $.command.register({
+      name: COMMAND,
+      description:
+        "Configure persistent compaction advice, experimental auto, token minimum and TypeSafe sharing",
+      argumentHint:
+        "[auto|hint|off|status|threshold <tokens|default>|sharing <on|off>|snooze|dismiss]",
+    });
+    try {
+      const now = await $.clock.now();
+      const keys = (await $.store.keys()).filter((key) => key.startsWith("session:"));
+      const entries = await Promise.all(
+        keys.map(async (key) => ({ key, value: await $.store.get(key) })),
+      );
+      for (const key of staleSessionKeys(entries, now)) await $.store.delete(key);
+    } catch {
+      // Pruning is housekeeping; a failure leaves old cooldown records in place.
+    }
+    await showPendingNotice($).catch(() => undefined);
+    await display($);
+    return next(e);
+  });
+
+  on("turn.start", async ($, e, next) => {
+    if (await isActivated($)) await invalidate($);
+    return next(e);
+  });
+
+  on("turn.complete", async ($, e, next) => {
+    const result = await next(e);
+    if (!(await isActivated($)) || !interactive) return result;
+    if (e.agentId !== undefined || e.reason !== "answer" || e.isAborted || !e.answer.trim()) {
+      return result;
+    }
+    try {
+      await settle($);
+    } catch {
+      notice($, "Compact adviser could not inspect this checkpoint; context left unchanged.");
+    }
+    return result;
+  });
+
+  // Any compaction but this module's own (which never reaches its own hook) resets the
+  // session's cooldown; a precompute installs nothing and a subagent's is its own.
+  on("session.compact", async ($, e, next) => {
+    const result = await next(e);
+    if (!(await isActivated($))) return result;
+    if (e.trigger === "precompute" || e.agentId !== undefined || result.skip !== undefined) {
+      return result;
+    }
+    try {
+      await invalidate($);
+      const key = sessionKey(await $.session.id());
+      await $.store.set(key, initialState(true, await $.clock.now()));
+      await display($);
+    } catch {
+      // The cooldown record stays as it was; the next judgment re-reads fresh usage.
+    }
+    return result;
+  });
+
+  on("command.run", { command: COMMAND }, async ($, e, next) => {
+    if (!(await isActivated($))) return next(e);
+    if (!interactive) return { text: "compact-adviser acts only in interactive sessions." };
+    const [command = "", ...rest] = e.args.trim().split(/\s+/);
+    const value = rest.join(" ");
+    try {
+      if (!command) {
+        minimumDraft = undefined;
+        statusDetails = undefined;
+        await openPane($);
+      } else if (["auto", "hint", "off"].includes(command) && !value) {
+        await changeMode($, command as Mode);
+      } else if (command === "threshold" && value) {
+        await changeMinimum($, value);
+      } else if (command === "sharing" && (value === "on" || value === "off")) {
+        await changeSharing($, value === "on");
+      } else if (command === "status" && !value) {
+        $.ui.log(`compact-adviser: ${await statusText($)}`);
+      } else if ((command === "snooze" || command === "dismiss") && !value) {
+        await snoozeOrDismiss($, command);
+      } else {
+        throw new Error(USAGE);
+      }
+    } catch (error) {
+      $.ui.toast(errorMessage(error), { timeoutMs: 8000 });
+    }
+    return {};
+  });
+
+  // The settings pane: the Pi extension's menu rows as engine elements.
+  on("ui.render", { component: "Pane" }, async ($, e, next) => {
+    if (!(await isActivated($)) || e.requestId !== PANE_ID) return next(e);
+    if (e.surface !== "terminal") {
+      const { Text } = $.ui.resolve(e);
+      return Text({ children: USAGE });
+    }
+    const { Box, Text, Select, Input, Button } = $.ui.resolve(e);
+    let config: Config;
+    try {
+      config = await loadConfig($);
+    } catch (error) {
+      return Box({
+        flexDirection: "column",
+        children: [
+          Text({ color: "error", children: errorMessage(error) }),
+          Button({ key: "close", label: "Close", onPress: () => void $.ui.close({ id: PANE_ID }) }),
+        ],
+      });
+    }
+    const redraw = () => $.ui.invalidate("ui.render");
+    const run = (action: () => Promise<unknown>) => {
+      void action()
+        .catch((error) => $.ui.toast(errorMessage(error), { timeoutMs: 8000 }))
+        .finally(redraw);
+    };
+    const children = [
+      Select({
+        key: "mode",
+        label: "Mode",
+        value: config.mode,
+        autoFocus: true,
+        options: [
+          { value: "hint", label: "Hints only (default)" },
+          { value: "auto", label: "Automatic (experimental)" },
+          { value: "off", label: "Off" },
+        ],
+        onSelect: (mode: string) => {
+          if (mode !== config.mode) run(() => changeMode($, mode as Mode, true));
+        },
+      }),
+      Input({
+        key: "minimum",
+        label: "Minimum context tokens",
+        value: minimumDraft?.text ?? String(config.minContextTokens),
+        placeholder: String(DEFAULT_MINIMUM),
+        submitLabel: "save",
+        onSubmit: (text: string) => {
+          run(async () => {
+            try {
+              await changeMinimum($, text);
+              minimumDraft = undefined;
+            } catch (error) {
+              minimumDraft = { text, error: errorMessage(error) };
+            }
+          });
+        },
+      }),
+      minimumDraft
+        ? Text({ color: "error", children: `  ${minimumDraft.error}` })
+        : Text({
+            dimColor: true,
+            children: "  A token count, not a percentage; no judgment below it.",
+          }),
+      Button({
+        key: "reset",
+        label: `Reset minimum to ${formatTokens(DEFAULT_MINIMUM)}`,
+        onPress: () => {
+          minimumDraft = undefined;
+          run(() => changeMinimum($, "default"));
+        },
+      }),
+      Button({
+        key: "sharing",
+        label: `TypeSafe sharing: ${config.sharingConsent ? "on" : "off"}`,
+        onPress: () => run(() => changeSharing($, !config.sharingConsent, true)),
+      }),
+      Button({
+        key: "status",
+        label: "Status",
+        onPress: () =>
+          run(async () => {
+            statusDetails = await statusText($);
+          }),
+      }),
+      ...(statusDetails ? [Text({ dimColor: true, children: statusDetails })] : []),
+      Button({ key: "close", label: "Close", onPress: () => void $.ui.close({ id: PANE_ID }) }),
+    ];
+    return Box({ flexDirection: "column", children });
+  });
+};

@@ -1,10 +1,200 @@
-# Claude Code mod - reserved
+# compact-adviser for Claude Code
 
-This directory is the reserved home for a future Claude Code implementation of compact-adviser.
-It is intentionally not implemented and cannot be installed yet.
-There are no hooks, runtime entry points, or package manifest here.
+A standalone Claude Code mod that suggests a useful checkpoint for `/compact`, rather than compacting merely because the context is large.
 
-The future mod must own its Claude-specific runtime, installation, dependencies, and configuration storage.
-It must not load the Pi extension or reuse Pi's mutable configuration/session state.
-The shared product semantics are described in [`../../docs/product-contract.md`](../../docs/product-contract.md).
-Pi installation is independent and targets only the sibling [`../pi-extension`](../pi-extension) package.
+> Potential session boundary detected. **Run /compact to save tokens.**
+
+Hints are the default.
+Automatic mode is an explicit, persistent, experimental opt-in.
+No other host's runtime, service, or configuration is required; this package never loads or reads the sibling Pi extension.
+
+## Requirements and status
+
+- Claude Code **2.1.274**, the verified target.
+The mods (function-hooks) plugin API is **early access**: Claude Code says it "may change between releases without notice", and it is not in the public documentation.
+Re-run `npm run check` and the live regression after every Claude Code update.
+- `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1` in Claude Code's launch environment.
+Without exactly `1` the module does nothing at all, even if Claude Code's own rollout loads it.
+- An interactive session. `-p` and SDK runs never judge, hint, or compact.
+- `TYPESAFE_API_KEY` in Claude Code's launch environment, and explicit sharing consent (below).
+- Nonessential network traffic allowed: under `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` Claude Code refuses every plugin network request, so no judgment can run; the mod says so and leaves context alone.
+
+No build step or runtime dependency is needed: Claude Code runs the TypeScript hooks module itself.
+
+## Install this package only
+
+Point Claude Code at this directory, not the monorepo root or the Pi package.
+
+For one session:
+
+```sh
+CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1 claude --plugin-dir "$PWD/packages/claude-mod"
+```
+
+For every session, link it into your user skills directory, which Claude Code adopts as the plugin `compact-adviser@skills-dir`:
+
+```sh
+ln -s "$PWD/packages/claude-mod" ~/.claude/skills/compact-adviser
+```
+
+and set `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1` wherever you launch Claude Code.
+The live regression exercises the `--plugin-dir` path; the skills-directory adoption is Claude Code's documented `claude plugin init` convention and was not separately exercised.
+
+## First-run setup
+
+1. Supply `TYPESAFE_API_KEY` to Claude Code's launch environment through your normal secret manager.
+Do not paste a key into any dialog or commit one to a repository.
+2. Run `/compact-adviser sharing on` and read the data-sharing confirmation.
+Without both a key and explicit sharing consent, no TypeSafe request is made.
+3. Run `/compact-adviser` to choose the mode and minimum context.
+
+The key is never written to settings, the plugin store, logs, or messages.
+The status line and `/compact-adviser status` report only whether a key is present.
+
+## Persistent settings
+
+`/compact-adviser` opens a settings pane with the Pi extension's rows:
+
+```text
+Mode: Hints only (default)
+Minimum context tokens: 40000
+  A token count, not a percentage; no judgment below it.
+[ Reset minimum to 40,000 ]
+[ TypeSafe sharing: on ]
+[ Status ]
+[ Close ]
+```
+
+Tab moves between rows; Enter opens the mode picker, saves the minimum, or presses a button; Escape closes the pane without saving an unsubmitted edit.
+
+**Mode** offers Hints only, Automatic (experimental), and Off.
+The first Automatic selection requires confirmation about lossy compaction and its across-project scope.
+Selecting Automatic does not compact immediately.
+
+**Minimum context tokens** is prefilled with the saved number, initially `40000`.
+Edit it and press Enter to validate and save.
+Blank, zero, negative, fractional, exponential, suffixed (`40k`), nonnumeric, and unsafe-integer inputs are rejected with a message beneath the field, and the typed text stays for correction.
+A value at or above the current model's window is saved with a warning; it is never clamped.
+Reset changes only the minimum, not the mode, sharing consent, or session cooldowns.
+
+`mode` and `minContextTokens` are this plugin's declared `userConfig` options.
+Claude Code validates them and stores them in your user `settings.json` under `pluginConfigs["compact-adviser@…"].options`, and its own `/config` menu shows the same two rows.
+Sharing consent and the automatic-mode acknowledgement live in the plugin's own store, so only this mod's confirmation dialogs can grant them.
+All four survive restarts, `--resume`, compaction, and project changes.
+A value a managed setting owns, or any refused save, is reported as not saved.
+
+Claude Code reloads a mod whenever one of its options is saved, and prints a dim "options changed, reloaded" line for it in the transcript; that line is Claude Code's own notice, not a model message.
+
+### Direct commands
+
+| Command | Effect |
+| --- | --- |
+| `/compact-adviser` | Settings pane |
+| `/compact-adviser auto` | Save automatic mode, with first-use confirmation |
+| `/compact-adviser hint` | Save hints-only mode |
+| `/compact-adviser off` | Save Off: no hints or TypeSafe requests |
+| `/compact-adviser status` | Mode, minimum, context usage, consent/key readiness, cooldown, Claude Code's own auto-compact threshold |
+| `/compact-adviser threshold 60000` | Save an absolute 60,000-token minimum |
+| `/compact-adviser threshold default` | Restore the constant 40,000-token minimum |
+| `/compact-adviser sharing on` | Confirm and enable conversation sharing |
+| `/compact-adviser sharing off` | Revoke sharing and cancel pending advice |
+| `/compact-adviser snooze` | Suppress advice for the next three completed exchanges |
+| `/compact-adviser dismiss` | Clear the current hint |
+
+Confirmations appear as short notices under the prompt; `status` writes one dim transcript line, which is not sent to the model.
+Turning the mod off does **not** disable Claude Code's own auto-compaction (`/autocompact`); the mod never blocks or rewrites any compaction.
+
+The status line under the prompt shows `compact-adviser: HINT · min 40,000`, with `· sharing off`, `· key missing`, or `· auto not confirmed` when something is not ready.
+
+## When it judges
+
+The mod observes `turn.complete`, once per main-loop turn after the final answer.
+Subagent turns, interrupted, refused, or errored turns, and empty answers are not checkpoints.
+The hook itself never waits on the network: it counts the exchange, runs the cheap checks below, and schedules the judgment.
+
+Before any request it requires:
+
+- Known context usage (`$.session.usage()`) of at least the configured minimum tokens.
+There is **no percentage threshold**.
+Usage is unknown immediately after a compaction until the next response; the mod waits rather than reusing an older count.
+- Mode not Off, consent, a key, and no judgment or compaction already in flight.
+- More than approximately 20k tokens of actual conversation text, so a large static prompt alone does not justify compaction.
+- No error backoff or snooze.
+- After any compaction (yours, Claude Code's automatic one, or this mod's): fresh usage, at least 20k growth from the first post-compaction usage, and three completed exchanges.
+- At least three exchanges between hints, and a different latest-ask/latest-reply checkpoint fingerprint.
+
+Cooldown facts live in the plugin's store keyed by session id and are pruned after 30 days.
+A new turn, any compaction, or a settings save invalidates an outstanding judgment.
+
+## The judgment and its limits
+
+One HTTPS request to `https://api.typesafe.ai/v1/systemone`, through Claude Code's host fetch, uses `jev-latest` and the Pi extension's three independent typed factors:
+
+1. Completed checkpoint, still in progress, or unclear.
+2. Known continuation is recoverable, needs exact older details, or unclear.
+3. Probability of a volatile or unsaved dependency.
+
+Local code combines the results; Jev does not generate an explanation.
+Malformed responses, contradictory factors, API failures, and timeouts never produce a hint or a compaction.
+Requests have a two-second deadline, no immediate retry, and capped exponential backoff.
+
+Hint mode requires both positive probabilities at 0.90 or more and a volatile dependency at most 0.10; automatic mode requires 0.98 and 0.02.
+These are conservative starting knobs, **not measured safety guarantees**.
+
+A hint pins the line `compact-adviser: Potential session boundary detected. Run /compact to save tokens.` under the prompt until your next turn, shows it briefly as a notice, and proposes `/compact` as the prompt box's dim suggestion (Tab to take it).
+Claude Code drops a plugin notice that follows another within two seconds; the pinned line is the reliable signal.
+
+Automatic mode additionally requires the first-use acknowledgement and complete judge coverage: no truncated recent text, no redaction, no omitted user constraints, and a transcript within the 4,096 messages Claude Code exposes to mods.
+Immediately before acting, the mod rereads saved settings, re-checks eligibility, and confirms no newer turn started.
+It then calls Claude Code's own compaction (`$.session.compact`) once, with instructions to keep the current work, pending tasks, referenced files, and next step exact.
+A vetoed or failed compaction backs off for a minute and is reported.
+A completed one is recorded as a dim transcript line such as `compact-adviser: automatic compaction completed: 70,040 to 1,113 tokens.`
+
+Compaction replaces older messages with a lossy summary.
+Exact tool output and long file contents are what the summary compresses away, and the user's next request cannot be observed in advance.
+Use hint mode if another plugin customizes compaction in ways this mod cannot observe.
+
+## Privacy and costs
+
+The request includes bounded user requests, recent visible replies, short tool-result excerpts, a prior compaction summary when present, names of files written by edit tools, and explicit omission markers.
+System prompts, hidden reasoning, images, environment variables, and complete transcripts are not sent.
+Known key patterns and obvious sensitive-file results (`.env`, `*.pem`, `id_rsa`, ...) are filtered, but this is **best-effort**, not comprehensive secret detection.
+Only grant sharing for conversations you are comfortable sending to TypeSafe.
+
+Requests are capped at 32,000 serialized UTF-8 bytes, about an 8k-token budget; oversized requests are refused locally.
+Published Jev pricing during development was $0.042 per million input tokens with free output, so an 8k-token request is about $0.0003.
+Pricing and limits can change.
+
+## Differences from the Pi extension
+
+| Pi extension | Claude Code mod | Why |
+| --- | --- | --- |
+| `compact-adviser.json` in Pi's agent directory holds all four settings | `mode` and `minContextTokens` are host-stored `userConfig` options (also in `/config`); consent and the auto acknowledgement are in the plugin store | Claude Code gives plugins a declared, validated configuration surface; a `/config` toggle must not bypass the consent disclosure |
+| Menu from Pi's select and input dialogs | One settings pane with a picker, a prefilled field, and buttons; confirmations in Claude Code's own question dialog | Same rows and flow on Claude Code's elements |
+| Judges at `agent_settled` | Judges at `turn.complete` for the main loop | Claude Code's turn end is already the settled point |
+| Hint as notice plus widget | Pinned status line, brief notice, and a Tab-to-take `/compact` suggestion | Claude Code's hint surfaces; the pinned line clears at the next turn |
+| Cooldowns in Pi session entries | Cooldowns in the plugin store by session id | Plugins cannot write session entries |
+| Compaction retains Pi's ~20k recent tokens; auto cancels if configured lower | Claude Code's summary plus a few recent messages; the judge is told so | Claude Code exposes no retained-tail setting to check |
+| Stable public extension API | Early-access mods API behind `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1` | Platform status |
+
+The hint line uses "Potential session boundary detected." as its lead-in; the call to action is the shared "Run /compact to save tokens."
+
+## Verification
+
+From this directory:
+
+```sh
+npm ci --ignore-scripts
+npm run check
+npm run test:e2e
+```
+
+`check` regenerates the plugin API declarations from the installed Claude Code (`/plugin-types`, in a throwaway configuration), type-checks, runs Biome, runs `claude plugin validate --strict` and asserts the hooks and environment reads it reports, then runs the behavioral suites under `claude plugin test` (the lib suite covers settings, cooldowns, the bounded judge input, and the Jev client; the adviser suite drives the hooks module through the engine's own host with mocked usage, transcript, store, clock, and TypeSafe).
+
+`test:e2e` requires `tmux` and drives the **real Claude Code TUI** with an isolated configuration directory, `--plugin-dir`, a local deterministic stand-in for the Anthropic Messages API, and a local TypeSafe fixture reached through the loopback-only `COMPACT_ADVISER_TEST_ENDPOINT` override (any non-`127.0.0.1` value is ignored).
+It checks the inert flag-off path, the indicator, consent through the real dialog, the settings pane (refused `40k`, saved `60000` in the host's options, Escape), a judged hint and its clearing, and automatic mode chosen in the pane compacting exactly once through Claude Code's own compaction.
+Set `COMPACT_TEST_CLAUDE_BIN` to test a different Claude Code binary.
+It spends no model quota and reads no account credential.
+
+These tests establish integration and safety behavior, **not Jev's classification accuracy** or continuation quality after a real summary.
+Live Jev behavior was not re-measured for this package; a consented evaluation with real transcripts remains necessary before automatic timing can be called reliable.

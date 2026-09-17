@@ -2,7 +2,7 @@
 
 ## Repository and scope
 
-The repository is a monorepo: `packages/pi-extension` is independently installable; `packages/claude-mod` is an explicitly reserved, unimplemented sibling; `docs/product-contract.md` records shared semantics without shared runtime wiring or mutable state.
+The repository is a monorepo: `packages/pi-extension` and `packages/claude-mod` are independently installable siblings; `docs/product-contract.md` records shared semantics without shared runtime wiring or mutable state.
 The root is not a Pi extension and has no host loader.
 No shared/global Pi installation has been changed.
 
@@ -44,3 +44,33 @@ No newer-only SDK API or shared installation upgrade is used.
 
 Live Jev compaction classification and real-summary continuation quality are not measured by fixture-based integration tests.
 Automatic mode is explicitly experimental, opt-in, and conservative.
+
+# Claude Code mod verification record
+
+## Implemented
+
+`packages/claude-mod` is a Claude Code plugin whose behavior is one function-hooks module (`hooks/register.ts`) over pure libraries in `lib/`.
+It matches the Pi extension's semantics: hint default, explicit experimental auto with first-use confirmation, the constant configurable 40,000-token minimum, explicit sharing consent, a key only from the launch environment, the same Jev questions, validation, floors, cooldowns, bounded state, snooze and dismiss, and the same menu rows and commands.
+Settings use Claude Code's `userConfig` options for mode and minimum and the plugin store for consent, acknowledgement, and cooldowns.
+It is inert unless `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS` is exactly `1`.
+
+## Runtime findings on Claude Code 2.1.274
+
+- The settings pane (`$.ui.open` with `Select`, a prefilled `Input`, and `Button` elements) works inline and docked, down to 70 columns in a spike.
+- Saving a `userConfig` option hot-reloads the module and drops the old environment's later toasts, so save confirmations are handed to the reloaded environment through the plugin store.
+- The host drops a plugin toast within two seconds of its previous one, so the pinned status line is the primary hint signal and automatic compaction is also recorded as a dim transcript line.
+- The engine's question dialog takes the keyboard from an open pane and returns it to the prompt, so the pane re-requests focus after a confirmation.
+- At session start `$.config.list()` can briefly omit the plugin's rows; the module falls back to the host-validated options it loaded with.
+- `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` makes Claude Code refuse every plugin `$.http.fetch`; the mod names that cause instead of a generic network error.
+- `$.session.compact` skips the calling plugin's own `session.compact` hook, so the automatic path resets its own cooldown.
+
+## Final verification (2026-09-17)
+
+- `npm --prefix packages/claude-mod run check`: plugin API declarations regenerated from the installed Claude Code, TypeScript and Biome clean, `claude plugin validate --strict` reports exactly the expected hooks and environment reads, and 60 behavioral tests pass under `claude plugin test`.
+- `npm --prefix packages/claude-mod run test:e2e`: nine live checks pass in the real Claude Code 2.1.274 TUI under tmux, with an isolated configuration directory, a local stand-in for the Anthropic Messages API, and a local TypeSafe fixture; no real user configuration, credential, or model quota was used.
+
+## Remaining quality boundary
+
+Live Jev classification and continuation quality after a real summary were not measured for this package; the TypeSafe responses in every test are fixtures.
+The skills-directory install path was not exercised; `--plugin-dir` was.
+The mods API is early access and must be re-verified on each Claude Code release.
