@@ -93,17 +93,19 @@ export function parseJudgment(value: unknown): Judgment {
     outputTokens: Number(r.usage?.output_tokens),
   };
 }
+export const QUALIFY_FLOOR = 0.9;
+
 /**
- * A single judgment decides the hint. A companion question about whether older
- * detail would be lost was measured against real sessions and removed: it never
- * prevented a bad hint, it cost good ones, and the phase answer was unchanged
- * without it.
+ * A single judgment decides both hint and auto. Mode only chooses what to do
+ * after this shared floor; auto is not a higher bar. A companion question about
+ * whether older detail would be lost was measured against real sessions and
+ * removed: it never prevented a bad hint, it cost good ones, and the phase
+ * answer was unchanged without it.
  */
-export function qualifies(j: Judgment, auto: boolean): boolean {
-  const threshold = auto ? 0.98 : 0.9;
+export function qualifies(j: Judgment): boolean {
   return (
     j.phase.choice === "completed_checkpoint" &&
-    j.phase.probabilities.completed_checkpoint >= threshold
+    j.phase.probabilities.completed_checkpoint >= QUALIFY_FLOOR
   );
 }
 export function requestBody(state: unknown): string {

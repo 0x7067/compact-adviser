@@ -148,11 +148,11 @@ export function installAdviser(pi: ExtensionAPI, options: Options): void {
         return;
       state = { ...state, failures: 0, retryAfter: 0 };
       const auto = latest.mode === "auto";
-      if (!qualifies(result, auto)) {
+      if (!qualifies(result)) {
         persist(state);
         return;
       }
-      if (auto && (!latest.autoAcknowledged || !view.autoCoverage)) {
+      if (auto && !latest.autoAcknowledged) {
         persist(state);
         return;
       }

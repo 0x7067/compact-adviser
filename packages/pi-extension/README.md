@@ -134,11 +134,12 @@ Requests have a two-second deadline, no immediate retry, and capped backoff on l
 The remote call is not awaited by Pi's event dispatcher.
 Input, model/branch/session changes, and native compaction invalidate an outstanding result.
 
-Initial policy thresholds are 0.90 for both Choice probabilities in hint mode; automatic mode uses 0.98.
+Hint and auto share one 0.90 floor on the completed-checkpoint probability.
 These are conservative starting knobs in code, **not measured safety guarantees**.
 Do not interpret a concentrated probability distribution as proof that a summary will preserve every useful fact.
 
-Automatic mode also requires the first-use acknowledgement, a persisted recoverable transcript, complete supplied user constraints and recent text, and no image, sensitive-redaction, or unknown-custom-context coverage gaps.
+Automatic mode still requires the first-use acknowledgement to turn auto on.
+Once enabled, it fires on the same qualifying judgment a hint would.
 Older omitted messages are explicitly disclosed to the judge; they remain a source of uncertainty.
 Immediately before action, the extension rereads saved preferences and checks the same session, branch, model, idle state, pending input, and cooldown.
 It then calls Pi's native `ctx.compact()` without substituting a custom summary.
