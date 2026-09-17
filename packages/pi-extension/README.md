@@ -29,7 +29,8 @@ The underlying model provider can be any provider supported by Pi.
 
 ## First-run setup
 
-1. Supply `TYPESAFE_API_KEY` to Pi's launch environment through your normal secret manager.
+1. Supply `TYPESAFE_API_KEY` through Pi's launch environment, or as `TYPESAFE_API_KEY=...` in a `.env` file in the process current working directory.
+A non-empty launch-environment value always wins; the file is read only when the variable is unset or empty, and a missing file is ignored.
 Do not paste a key into the settings dialog or commit one to the repository.
 2. Run `/compact-adviser sharing on` and read the data-sharing confirmation.
 Without both a key and explicit sharing consent, no TypeSafe request is made.

@@ -9,6 +9,7 @@ const expected = [
   "hooks: session.start, turn.start, turn.complete, session.compact, command.run{command=compact-adviser}, ui.render{component=Pane}",
   "env reads: CLAUDE_CODE_ENABLE_FUNCTION_HOOKS, COMPACT_ADVISER_TEST_ENDPOINT, TYPESAFE_API_KEY",
   "env writes: nothing",
+  "$.fs.read (via apiKey)",
   "Validation passed",
 ];
 const forbidden = [

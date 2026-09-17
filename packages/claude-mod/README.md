@@ -16,7 +16,7 @@ Re-run `npm run check` and the live regression after every Claude Code update.
 - `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1` in Claude Code's launch environment.
 Without exactly `1` the module does nothing at all, even if Claude Code's own rollout loads it.
 - An interactive session. `-p` and SDK runs never judge, hint, or compact.
-- `TYPESAFE_API_KEY` in Claude Code's launch environment, and explicit sharing consent (below).
+- `TYPESAFE_API_KEY` in Claude Code's launch environment, or `TYPESAFE_API_KEY=...` in a `.env` file in the session working directory, and explicit sharing consent (below).
 - Nonessential network traffic allowed: under `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` Claude Code refuses every plugin network request, so no judgment can run; the mod says so and leaves context alone.
 
 No build step or runtime dependency is needed: Claude Code runs the TypeScript hooks module itself.
@@ -42,7 +42,8 @@ The live regression exercises the `--plugin-dir` path; the skills-directory adop
 
 ## First-run setup
 
-1. Supply `TYPESAFE_API_KEY` to Claude Code's launch environment through your normal secret manager.
+1. Supply `TYPESAFE_API_KEY` to Claude Code's launch environment through your normal secret manager, or put `TYPESAFE_API_KEY=...` in a `.env` file in the working directory.
+A non-empty launch-environment value always wins; the file is read only when the variable is unset or empty, and a missing file is ignored.
 Do not paste a key into any dialog or commit one to a repository.
 2. Run `/compact-adviser sharing on` and read the data-sharing confirmation.
 Without both a key and explicit sharing consent, no TypeSafe request is made.

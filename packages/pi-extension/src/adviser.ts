@@ -5,6 +5,7 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { type Config, ConfigStore, DEFAULT_CONFIG, type Mode, parseMinimum } from "./config.ts";
 import { snapshot } from "./context.ts";
+import { resolveTypesafeApiKey } from "./env.ts";
 import { type Judgment, judge, qualifies } from "./judge.ts";
 import { promptMinimum } from "./minimum-input.ts";
 import {
@@ -27,7 +28,7 @@ interface Options {
 }
 export function installAdviser(pi: ExtensionAPI, options: Options): void {
   const store = new ConfigStore(options.agentDir);
-  const key = options.key ?? (() => process.env.TYPESAFE_API_KEY);
+  const key = options.key ?? (() => resolveTypesafeApiKey());
   const now = options.now ?? Date.now;
   const evaluate = options.evaluate ?? judge;
   const [major, minor] = options.version.split(".").map(Number);
@@ -333,7 +334,7 @@ export function installAdviser(pi: ExtensionAPI, options: Options): void {
       on &&
       !(await ctx.ui.confirm(
         "Send selected conversation text to TypeSafe?",
-        "Eligible checkpoints send bounded user requests, recent replies, short tool excerpts and artifact names to api.typesafe.ai. Secret filtering is best-effort, not a guarantee. System prompts, hidden reasoning and images are excluded. This permission persists across projects. Set TYPESAFE_API_KEY in Pi's launch environment; do not paste it here.",
+        "Eligible checkpoints send bounded user requests, recent replies, short tool excerpts and artifact names to api.typesafe.ai. Secret filtering is best-effort, not a guarantee. System prompts, hidden reasoning and images are excluded. This permission persists across projects. Set TYPESAFE_API_KEY in Pi's launch environment or in a .env file in the working directory; do not paste it here.",
       ))
     )
       return;

@@ -30,6 +30,7 @@ import {
   parseMinimum,
   readConfig,
 } from "../lib/config.ts";
+import { parseDotenvKey } from "../lib/env.ts";
 import { JudgeError, judge, qualifies } from "../lib/judge.ts";
 import { snapshot } from "../lib/snapshot.ts";
 import {
@@ -77,7 +78,13 @@ function isActivated($: EngineInterface): Promise<boolean> {
 }
 
 async function apiKey($: EngineInterface): Promise<string> {
-  return ((await $.env.get("TYPESAFE_API_KEY")) ?? "").trim();
+  const fromEnv = ((await $.env.get("TYPESAFE_API_KEY")) ?? "").trim();
+  if (fromEnv) return fromEnv;
+  try {
+    return (parseDotenvKey(await $.fs.read(".env"), "TYPESAFE_API_KEY") ?? "").trim();
+  } catch {
+    return "";
+  }
 }
 
 /** A loopback-only endpoint override for the live regression's local TypeSafe fixture. */
@@ -411,7 +418,7 @@ async function changeSharing($: EngineInterface, on: boolean, fromPane = false):
     on &&
     !(await confirm(
       $,
-      "Eligible checkpoints send bounded user requests, recent replies, short tool excerpts and artifact names to api.typesafe.ai. Secret filtering is best-effort, not a guarantee. System prompts, hidden reasoning and images are excluded. This permission persists across projects. Set TYPESAFE_API_KEY in Claude Code's launch environment; do not paste it here. Send selected conversation text to TypeSafe?",
+      "Eligible checkpoints send bounded user requests, recent replies, short tool excerpts and artifact names to api.typesafe.ai. Secret filtering is best-effort, not a guarantee. System prompts, hidden reasoning and images are excluded. This permission persists across projects. Set TYPESAFE_API_KEY in Claude Code's launch environment or in a .env file in the working directory; do not paste it here. Send selected conversation text to TypeSafe?",
       "Allow sharing",
       "TypeSafe",
       fromPane,

@@ -25,7 +25,7 @@ pi install "$PWD/packages/pi-extension"
 Restart Pi or run `/reload`.
 Use Pi 0.82.0 or newer; the actual 0.82.0 runtime is the verified compatibility target.
 
-Launch Pi with `TYPESAFE_API_KEY` supplied by your usual secret manager, then run:
+Launch Pi with `TYPESAFE_API_KEY` supplied by your usual secret manager, or as `TYPESAFE_API_KEY=...` in a `.env` file in the working directory, then run:
 
 ```text
 /compact-adviser sharing on
@@ -41,7 +41,7 @@ See the [Pi guide](packages/pi-extension/README.md) for settings, commands, priv
 
 ## Claude Code quick start
 
-From this repository's root, with `TYPESAFE_API_KEY` supplied by your usual secret manager:
+From this repository's root, with `TYPESAFE_API_KEY` supplied by your usual secret manager or a working-directory `.env`:
 
 ```sh
 CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1 claude --plugin-dir "$PWD/packages/claude-mod"

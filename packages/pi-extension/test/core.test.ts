@@ -5,6 +5,7 @@ import test from "node:test";
 import { lockSync } from "proper-lockfile";
 import { ConfigStore, DEFAULT_CONFIG, parseMinimum } from "../src/config.ts";
 import { snapshot } from "../src/context.ts";
+import { parseDotenvKey, resolveTypesafeApiKey } from "../src/env.ts";
 import {
   ENDPOINT,
   judge,
@@ -154,6 +155,20 @@ test("HTTP contract, output bound, status classification, and cancellation", asy
     }) as typeof fetch),
     /network/,
   );
+});
+
+test("cwd .env supplies TYPESAFE_API_KEY when process env is empty and is ignored when env is set", (t) => {
+  const dir = temp(t);
+  writeFileSync(
+    join(dir, ".env"),
+    "# TYPESAFE_API_KEY=commented\n\nOTHER=nope\nTYPESAFE_API_KEY=from-dotenv\nTYPESAFE_API_KEY=from-dotenv-last\n",
+  );
+  assert.equal(resolveTypesafeApiKey({ TYPESAFE_API_KEY: "" }, dir), "from-dotenv-last");
+  assert.equal(resolveTypesafeApiKey({}, dir), "from-dotenv-last");
+  assert.equal(resolveTypesafeApiKey({ TYPESAFE_API_KEY: "from-env" }, dir), "from-env");
+  assert.equal(resolveTypesafeApiKey({ TYPESAFE_API_KEY: "   " }, dir), "from-dotenv-last");
+  assert.equal(resolveTypesafeApiKey({}, temp(t)), undefined);
+  assert.equal(parseDotenvKey("TYPESAFE_API_KEY=only\n", "TYPESAFE_API_KEY"), "only");
 });
 
 test("the request deadline aborts work instead of delaying the next turn", async () => {
