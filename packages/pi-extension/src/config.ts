@@ -18,14 +18,12 @@ export interface Config {
   version: 1;
   mode: Mode;
   minContextTokens: number;
-  sharingConsent: boolean;
   autoAcknowledged: boolean;
 }
 export const DEFAULT_CONFIG: Readonly<Config> = Object.freeze({
   version: 1,
   mode: "hint",
   minContextTokens: 40000,
-  sharingConsent: false,
   autoAcknowledged: false,
 });
 export function parseMinimum(text: string): number {
@@ -46,7 +44,6 @@ function validate(value: unknown): Config {
     typeof c.minContextTokens !== "number" ||
     !Number.isSafeInteger(c.minContextTokens) ||
     c.minContextTokens <= 0 ||
-    typeof c.sharingConsent !== "boolean" ||
     typeof c.autoAcknowledged !== "boolean"
   ) {
     throw new Error("Invalid or unsupported settings. Restore a valid version-1 configuration.");
@@ -55,7 +52,6 @@ function validate(value: unknown): Config {
     version: 1,
     mode: c.mode as Mode,
     minContextTokens: c.minContextTokens,
-    sharingConsent: c.sharingConsent,
     autoAcknowledged: c.autoAcknowledged,
   };
 }

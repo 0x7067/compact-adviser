@@ -28,11 +28,10 @@ Use Pi 0.82.0 or newer; the actual 0.82.0 runtime is the verified compatibility 
 Launch Pi with `TYPESAFE_API_KEY` supplied by your usual secret manager, or as `TYPESAFE_API_KEY=...` in a `.env` file in the working directory, then run:
 
 ```text
-/compact-adviser sharing on
 /compact-adviser
 ```
 
-The extension asks before sending selected conversation text to TypeSafe.
+Installing the package is consent to send eligible checkpoint context to TypeSafe when a key is available and other product gates pass.
 It defaults to hints, checks a **constant 40,000-token minimum** before requesting a judgment, and only judges settled exchanges.
 Optional automatic compaction requires explicit enablement and remains experimental.
 The selected mode and token minimum persist across sessions and projects.
@@ -50,11 +49,11 @@ CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1 claude --plugin-dir "$PWD/packages/claude-mo
 Then run:
 
 ```text
-/compact-adviser sharing on
 /compact-adviser
 ```
 
-The mod has the same modes, constant 40,000-token minimum, consent requirement, and thresholds as the Pi extension.
+The mod has the same modes, constant 40,000-token minimum, and thresholds as the Pi extension.
+Installing the package is consent to send eligible checkpoint context to TypeSafe when a key is available.
 It relies on Claude Code's early-access mods API, verified on Claude Code 2.1.274, and does nothing unless `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS` is exactly `1`.
 See the [Claude Code guide](packages/claude-mod/README.md) for installation, settings, commands, privacy, and the differences from Pi.
 

@@ -13,7 +13,8 @@ There is no percentage-of-context-window condition.
 - Inspect cheap local state before any TypeSafe Jev request.
 - Judge whether known next work can continue without exact older details, not whether context is merely large.
 - Uncertain, stale, interrupted, or failed judgments leave context alone.
-- External conversation sharing requires explicit consent; secrets are never settings values.
+- Installing or loading the package is consent to send eligible checkpoint context to TypeSafe when a key is available and other product gates pass (mode, minimum context, idle session, and so on). Secrets are never settings values.
+- There is no separate sharing toggle. A saved `sharingConsent` value from an older version is ignored.
 - Native compaction remains authoritative and lossy; no timing model promises perfect preservation.
 - Configuration changes do not immediately compact.
 Invalid values and cancellation preserve existing settings; failed saves are reported.
@@ -26,6 +27,6 @@ Invalid values and cancellation preserve existing settings; failed saves are rep
 | `packages/claude-mod` | Claude Code mod (early-access function-hooks API) | Load this package path with `claude --plugin-dir` and `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1` |
 
 Pi uses its own agent-directory `compact-adviser.json` and Pi session custom entries.
-The Claude Code mod uses its own `userConfig` options (`mode`, `minContextTokens`) in Claude Code's settings, and its own plugin store for consent, the automatic-mode acknowledgement, and per-session cooldowns.
+The Claude Code mod uses its own `userConfig` options (`mode`, `minContextTokens`) in Claude Code's settings, and its own plugin store for the automatic-mode acknowledgement and per-session cooldowns.
 Neither implementation reads or mutates the other's records.
 No harness installs or loads the other harness's runtime.

@@ -33,12 +33,11 @@ The underlying model provider can be any provider supported by Pi.
 `export` and `declare -x` prefixes are accepted, and one matching pair of quotes around the value is stripped.
 A non-empty launch-environment value always wins; the file is read only when the variable is unset or empty, and a missing file is ignored.
 Do not paste a key into the settings dialog or commit one to the repository.
-2. Run `/compact-adviser sharing on` and read the data-sharing confirmation.
-Without both a key and explicit sharing consent, no TypeSafe request is made.
-3. Run `/compact-adviser` to choose mode and minimum context.
+2. Run `/compact-adviser` to choose mode and minimum context, or leave the defaults (hints, 40,000 tokens).
 
+Installing this package is consent to send eligible checkpoint context to TypeSafe when a key is available and other product gates pass.
+Without a key, or with mode Off, no TypeSafe request is made.
 No credentials are written to the extension's configuration or session entries.
-The status line reports only whether a key is present.
 
 ## Persistent settings
 
@@ -48,7 +47,6 @@ The status line reports only whether a key is present.
 Mode: hint
 Minimum context: 40,000 tokens
 Reset minimum to 40,000
-TypeSafe sharing: off
 Status
 Close
 ```
@@ -63,7 +61,7 @@ The confirmation states the new token count and that it applies to all sessions.
 Blank, zero, negative, fractional, exponential, suffixed (`40k`), nonnumeric, and unsafe-integer inputs are rejected.
 Use whole decimal tokens such as `60000`.
 A value at or above the current model's window is allowed but produces a warning; it is not silently clamped.
-Reset changes only the minimum, not the mode, sharing consent, or session cooldowns.
+Reset changes only the minimum, not the mode or session cooldowns.
 
 The configuration lives in `getAgentDir()/compact-adviser.json`, normally `~/.pi/agent/compact-adviser.json`:
 
@@ -72,12 +70,12 @@ The configuration lives in `getAgentDir()/compact-adviser.json`, normally `~/.pi
   "version": 1,
   "mode": "hint",
   "minContextTokens": 40000,
-  "sharingConsent": false,
   "autoAcknowledged": false
 }
 ```
 
-Mode, minimum, and consent survive restart, `/new`, `/resume`, compaction, and project changes.
+Mode, minimum, and the automatic-mode acknowledgement survive restart, `/new`, `/resume`, compaction, and project changes.
+A legacy `sharingConsent` field is ignored and dropped on the next save.
 Project files cannot silently override them.
 Atomic writes and a short cross-process lock prevent partial saves and lost concurrent field updates.
 A busy lock or failed save is reported instead of claiming success.
@@ -92,11 +90,9 @@ Unreadable, malformed, unsupported-version, oversized, or symlinked settings sup
 | `/compact-adviser auto` | Save automatic mode, with first-use confirmation |
 | `/compact-adviser hint` | Save hints-only mode |
 | `/compact-adviser off` | Save Off: no hints or TypeSafe requests |
-| `/compact-adviser status` | Mode, minimum, context usage, consent/key readiness, cooldown, settings path |
+| `/compact-adviser status` | Mode, minimum, context usage, key readiness, cooldown, settings path |
 | `/compact-adviser threshold 60000` | Save an absolute 60,000-token minimum |
 | `/compact-adviser threshold default` | Restore the constant 40,000-token minimum |
-| `/compact-adviser sharing on` | Confirm and enable conversation sharing |
-| `/compact-adviser sharing off` | Revoke sharing and cancel pending advice |
 | `/compact-adviser snooze` | Suppress advice for the next three completed exchanges |
 | `/compact-adviser dismiss` | Clear the current hint |
 
@@ -115,7 +111,7 @@ There is **no percentage threshold**.
 Cached input counts toward context; cumulative spending does not determine eligibility.
 - An idle session, no pending messages or unsent editor text, and no judgment or compaction already in flight.
 - More than approximately 20k tokens of actual conversation history, so a large static system prompt alone does not justify compaction.
-- Consent, a credential, and no error backoff or snooze.
+- A key, and no error backoff or snooze.
 - After successful compaction: fresh usage, at least 20k growth from the first post-compaction usage, and three completed exchanges.
 - At least three exchanges between hints, and a materially different current-user/final-reply checkpoint fingerprint.
 
@@ -161,7 +157,7 @@ The separate summarization request costs tokens and can reduce prompt-cache reus
 The request includes bounded user constraints, recent visible replies, short tool-result excerpts, an existing summary when present, saved-artifact names, and explicit omission markers.
 System prompts, hidden reasoning, images, raw environment variables, and complete transcripts are not sent by default.
 Known key patterns and obvious sensitive-file results are filtered, but this is **best-effort**, not comprehensive secret detection.
-Only grant sharing for conversations you are comfortable sending to TypeSafe.
+Installing this package is consent to send eligible checkpoint context to TypeSafe; uninstall it or set mode Off if that is not acceptable.
 
 Requests are capped at 32,000 serialized UTF-8 bytes, approximately an 8k-token budget for typical English input; Jev's tokenizer can differ.
 Oversized requests are refused locally rather than sent.

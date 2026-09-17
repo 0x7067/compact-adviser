@@ -229,6 +229,6 @@ export function harness(
       clock = value;
     },
     enable: (mode: "hint" | "auto" = "hint") =>
-      store.update({ sharingConsent: true, mode, autoAcknowledged: mode === "auto" }),
+      store.update({ mode, autoAcknowledged: mode === "auto" }),
   };
 }

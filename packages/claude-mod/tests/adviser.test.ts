@@ -52,21 +52,11 @@ describe("activation", () => {
     });
   }
 
-  test("registers /compact-adviser and pins the Pi-style indicator at session start", async ($, on) => {
-    const w = world(on, { consent: "absent" });
+  test("registers /compact-adviser and does not pin an ambient status line", async ($, on) => {
+    const w = world(on);
     await $.session.start(interactiveStart);
     expect(w.journal.commands).toEqual([PLUGIN]);
-    expect(w.journal.statuses.at(-1)).toBe("HINT · min 40,000 · sharing off");
-  });
-
-  test("indicator readiness: key missing, auto not confirmed, off", async ($, on) => {
-    const w = world(on, { key: undefined });
-    await $.session.start(interactiveStart);
-    expect(w.journal.statuses.at(-1)).toBe("HINT · min 40,000 · key missing");
-    w.rows.set(`${PLUGIN}.mode`, "auto");
-    w.rows.set(`${PLUGIN}.minContextTokens`, 1200000);
-    await $.session.start(interactiveStart);
-    expect(w.journal.statuses.at(-1)).toBe("AUTO · min 1,200,000 · key missing");
+    expect(w.journal.statuses.filter((s) => s)).toHaveLength(0);
   });
 });
 
@@ -90,13 +80,13 @@ describe("turn-end gates", () => {
     expect(w.journal.compactions).toHaveLength(0);
   });
 
-  test("the next turn clears the hint and restores the indicator", async ($, on) => {
+  test("the next turn clears the hint without restoring a status strip", async ($, on) => {
     const w = world(on);
     await $.session.start(interactiveStart);
     await turnEnd($, w);
     expect(w.journal.statuses.at(-1)).toBe(HINT);
     await $.turn.start({ turnId: "t2", origin: { kind: "composer" } } as never);
-    expect(w.journal.statuses.at(-1)).toBe("HINT · min 40,000");
+    expect(w.journal.statuses.at(-1)).toBeUndefined();
   });
 
   test("below the constant minimum no transcript is read and TypeSafe is not called", async ($, on) => {
@@ -119,11 +109,9 @@ describe("turn-end gates", () => {
     expect(w.journal.requests).toHaveLength(1);
   });
 
-  test("no request without sharing consent, a key, known usage, or in off mode", async ($, on) => {
-    const w = world(on, { consent: "absent" });
+  test("no request without a key, known usage, or in off mode", async ($, on) => {
+    const w = world(on);
     await $.session.start(interactiveStart);
-    await turnEnd($, w);
-    w.store.set("preferences", { version: 1, sharingConsent: true, autoAcknowledged: false });
     w.usage.tokens = undefined;
     await turnEnd($, w);
     w.usage.tokens = 60000;
@@ -131,6 +119,13 @@ describe("turn-end gates", () => {
     await turnEnd($, w);
     expect(w.journal.requests).toHaveLength(0);
     w.rows.set(`${PLUGIN}.mode`, "hint");
+    await turnEnd($, w);
+    expect(w.journal.requests).toHaveLength(1);
+  });
+
+  test("legacy sharingConsent false in the plugin store is ignored", async ($, on) => {
+    const w = world(on, { consent: { sharingConsent: false, autoAcknowledged: false } });
+    await $.session.start(interactiveStart);
     await turnEnd($, w);
     expect(w.journal.requests).toHaveLength(1);
   });
@@ -149,9 +144,8 @@ describe("turn-end gates", () => {
         '# ignore\nOTHER=nope\nTYPESAFE_API_KEY=from-dotenv\ndeclare -x TYPESAFE_API_KEY="from-dotenv-last"\n',
     });
     await $.session.start(interactiveStart);
-    expect(w.journal.statuses.at(-1)).toBe("HINT · min 40,000");
-    expect(w.journal.fsReads.some((path) => path === ".env" || path.endsWith("/.env"))).toBe(true);
     await turnEnd($, w);
+    expect(w.journal.fsReads.some((path) => path === ".env" || path.endsWith("/.env"))).toBe(true);
     expect(w.journal.requests).toHaveLength(1);
     expect(w.journal.requests[0]?.headers.Authorization).toBe("Bearer from-dotenv-last");
     expect(w.journal.requests[0]?.body.includes("from-dotenv-last")).toBe(false);
@@ -160,8 +154,8 @@ describe("turn-end gates", () => {
   test("a host env key wins over cwd .env", async ($, on) => {
     const w = world(on, { dotenv: "TYPESAFE_API_KEY=from-dotenv\n" });
     await $.session.start(interactiveStart);
-    expect(w.journal.fsReads).toEqual([]);
     await turnEnd($, w);
+    expect(w.journal.fsReads).toEqual([]);
     expect(w.journal.requests).toHaveLength(1);
     expect(w.journal.requests[0]?.headers.Authorization).toBe(`Bearer ${KEY}`);
     expect(w.journal.requests[0]?.body.includes("from-dotenv")).toBe(false);
@@ -351,7 +345,7 @@ describe("compaction cooldown", () => {
 });
 
 describe("automatic mode", () => {
-  const acknowledged = { sharingConsent: true, autoAcknowledged: true };
+  const acknowledged = { autoAcknowledged: true };
   const complete = () => longConversation().slice(2);
 
   function autoWorld(on: Parameters<typeof world>[0]) {
@@ -387,7 +381,7 @@ describe("automatic mode", () => {
     expect(w.journal.logs).toEqual([
       "compact-adviser: automatic compaction completed: 60,000 to 3,300 tokens.",
     ]);
-    expect(w.journal.statuses.at(-1)).toBe("AUTO · min 40,000");
+    expect(w.journal.statuses.at(-1)).toBeUndefined();
     expect(stored(w).compacted).toBe(true);
     expect(stored(w).completed).toBe(0);
     w.messages = longConversation("again");
@@ -409,9 +403,8 @@ describe("automatic mode", () => {
 
   test("auto chosen in /config without the first-use confirmation never compacts", async ($, on) => {
     const w = autoWorld(on);
-    w.store.set("preferences", { version: 1, sharingConsent: true, autoAcknowledged: false });
+    w.store.set("preferences", { version: 1, autoAcknowledged: false });
     await $.session.start(interactiveStart);
-    expect(w.journal.statuses.at(-1)).toBe("AUTO · min 40,000 · auto not confirmed");
     await turnEnd($, w);
     expect(w.journal.compactions).toHaveLength(0);
   });
@@ -519,7 +512,7 @@ describe("commands", () => {
     expect(w.journal.asks).toHaveLength(3);
     expect(w.journal.asks[0]).toContain("Compaction is lossy");
     expect(w.journal.toasts.at(-1)).toBe(
-      "Automatic mode saved (all sessions). TypeSafe sharing and a key are still required.",
+      "Automatic mode saved (all sessions). A TypeSafe key is still required.",
     );
     await $.command.run(commandRun("hint"));
     await $.command.run(commandRun("auto"));
@@ -536,28 +529,24 @@ describe("commands", () => {
     expect(w.journal.toasts.at(-1)).toBe(
       "Off saved (all sessions). Claude Code's built-in compaction is unchanged.",
     );
-    expect(w.journal.statuses.at(-1)).toBe("OFF · min 40,000");
     await $.command.run(commandRun("hint"));
     expect(w.journal.toasts.at(-1)).toBe(
       "Hints only saved (all sessions). Claude Code's built-in compaction is unchanged.",
     );
   });
 
-  test("sharing on requires the disclosure; sharing off revokes without asking", async ($, on) => {
-    const w = world(on, { consent: "absent" });
+  test("sharing commands are gone; install is the sharing consent", async ($, on) => {
+    const w = world(on);
     await $.session.start(interactiveStart);
-    w.answers.push("Cancel");
     await $.command.run(commandRun("sharing on"));
-    expect(w.store.get("preferences")).toBeUndefined();
-    w.answers.push("Allow sharing");
-    await $.command.run(commandRun("sharing on"));
-    expect(w.journal.asks.at(-1)).toContain("api.typesafe.ai");
-    expect(w.journal.asks.at(-1)).toContain("best-effort");
-    expect(w.journal.toasts.at(-1)).toBe("TypeSafe conversation sharing enabled (all sessions).");
-    expect(w.journal.statuses.at(-1)).toBe("HINT · min 40,000");
+    expect(w.journal.toasts.at(-1)).toBe(
+      "Use /compact-adviser, auto, hint, off, status, threshold <tokens|default>, snooze or dismiss.",
+    );
     await $.command.run(commandRun("sharing off"));
-    expect(w.journal.asks).toHaveLength(2);
-    expect(w.journal.statuses.at(-1)).toBe("HINT · min 40,000 · sharing off");
+    expect(w.journal.toasts.at(-1)).toBe(
+      "Use /compact-adviser, auto, hint, off, status, threshold <tokens|default>, snooze or dismiss.",
+    );
+    expect(w.journal.asks).toHaveLength(0);
   });
 
   test("status reports readiness and the engine threshold, never the key", async ($, on) => {
@@ -566,7 +555,7 @@ describe("commands", () => {
     await $.command.run(commandRun("status"));
     const line = w.journal.logs.at(-1) ?? "";
     expect(line).toBe(
-      "compact-adviser: Mode: hint. Minimum: 40,000 tokens. Context: 60,000. Sharing: on. Key: present. No cooldown; semantic checks still apply. Claude Code auto-compacts at 167,000 tokens. Settings: /config (compact-adviser rows) and /compact-adviser.",
+      "compact-adviser: Mode: hint. Minimum: 40,000 tokens. Context: 60,000. Key: present. No cooldown; semantic checks still apply. Claude Code auto-compacts at 167,000 tokens. Settings: /config (compact-adviser rows) and /compact-adviser.",
     );
     expect(line.includes(KEY)).toBe(false);
   });
@@ -586,7 +575,7 @@ describe("commands", () => {
     expect(w.journal.requests).toHaveLength(1);
     expect(w.journal.statuses.at(-1)).toBe(HINT);
     await $.command.run(commandRun("dismiss"));
-    expect(w.journal.statuses.at(-1)).toBe("HINT · min 40,000");
+    expect(w.journal.statuses.at(-1)).toBeUndefined();
   });
 
   test("unknown arguments show the usage", async ($, on) => {
@@ -594,7 +583,7 @@ describe("commands", () => {
     await $.session.start(interactiveStart);
     await $.command.run(commandRun("threshold"));
     expect(w.journal.toasts.at(-1)).toBe(
-      "Use /compact-adviser, auto, hint, off, status, threshold <tokens|default>, sharing <on|off>, snooze or dismiss.",
+      "Use /compact-adviser, auto, hint, off, status, threshold <tokens|default>, snooze or dismiss.",
     );
   });
 });
@@ -620,13 +609,13 @@ describe("settings pane", () => {
     expect(input?.props.value).toBe("40000");
     expect(input?.props.label).toBe("Minimum context tokens");
     const buttons = drawn.filter((e) => e.type === "Button").map((e) => e.props.label);
-    expect(buttons).toEqual(["Reset minimum to 40,000", "TypeSafe sharing: on", "Status", "Close"]);
+    expect(buttons).toEqual(["Reset minimum to 40,000", "Status", "Close"]);
     expect(text(tree)).toContain("A token count, not a percentage; no judgment below it.");
   });
 
   // The kit drives presses only; choosing a mode and submitting the minimum field are
   // exercised against the real Claude Code TUI by scripts/live-e2e.mjs.
-  test("reset, sharing, status, and close act through the same paths as the commands", async ($, on) => {
+  test("reset, status, and close act through the same paths as the commands", async ($, on) => {
     const w = world(on, { minimum: 75000, mode: "off" });
     await $.session.start(interactiveStart);
     await $.ui.render(pane);
@@ -636,16 +625,12 @@ describe("settings pane", () => {
     expect(w.rows.get(`${PLUGIN}.mode`)).toBe("off");
     expect(w.journal.toasts.at(-1)).toBe("Minimum context saved: 40,000 tokens (all sessions).");
     await $.ui.render(pane);
-    await $.ui.press({ plugin: PLUGIN, key: "sharing" });
-    await w.clock.settle();
-    expect(w.journal.toasts.at(-1)).toBe("TypeSafe conversation sharing disabled (all sessions).");
-    expect(w.journal.asks).toHaveLength(0);
-    await $.ui.render(pane);
     await $.ui.press({ plugin: PLUGIN, key: "status" });
     await w.clock.settle();
     expect(text(await $.ui.render(pane))).toContain(
-      "Mode: off. Minimum: 40,000 tokens. Context: 60,000. Sharing: off.",
+      "Mode: off. Minimum: 40,000 tokens. Context: 60,000. Key: present.",
     );
+    expect(text(await $.ui.render(pane))).not.toContain("Sharing:");
     await $.ui.press({ plugin: PLUGIN, key: "close" });
     expect(w.journal.closed).toEqual([PLUGIN]);
   });

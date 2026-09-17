@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import test from "node:test";
 import { snapshot } from "../src/context.ts";
 import { restoreState } from "../src/state.ts";
@@ -25,10 +25,9 @@ test("threshold is a constant 40k and requests only run at settlement", async (t
   assert.equal(h.calls, 1);
 });
 
-test("unknown usage, missing consent/key, off, busy, pending, error and non-TUI never call Jev", async (t) => {
+test("unknown usage, missing key, off, busy, pending, error and non-TUI never call Jev", async (t) => {
   for (const scenario of [
     "unknown",
-    "consent",
     "key",
     "off",
     "busy",
@@ -45,7 +44,6 @@ test("unknown usage, missing consent/key, off, busy, pending, error and non-TUI 
     const h = harness(t);
     h.enable();
     if (scenario === "unknown") h.tokens = null;
-    if (scenario === "consent") h.store.update({ sharingConsent: false });
     if (scenario === "key") h.install("0.82.0", "");
     if (scenario === "off") h.store.update({ mode: "off" });
     if (scenario === "busy") h.idle = false;
@@ -71,7 +69,7 @@ test("persistent settings menu prefills, validates, saves, cancels and resets on
   assert.ok(h.notifications.includes("Minimum context saved: 60,000 tokens (all sessions)."));
   h.install();
   await h.fire("session_start");
-  assert.match(h.statuses.at(-1) ?? "", /AUTO.*60,000/);
+  assert.ok(h.statuses.every((s) => s === undefined));
   h.selects.push("Minimum context: 60,000 tokens", "Close");
   h.inputs.push(undefined);
   await h.command("");
@@ -87,9 +85,10 @@ test("persistent settings menu prefills, validates, saves, cancels and resets on
   await h.command("status");
   assert.ok(h.notifications.at(-1)?.includes("Key: present"));
   assert.ok(!h.notifications.at(-1)?.includes("test-key"));
+  assert.ok(!h.notifications.at(-1)?.includes("Sharing:"));
 });
 
-test("auto and sharing require explicit confirmation, persist, and never compact on selection", async (t) => {
+test("auto requires explicit confirmation, persist, and never compact on selection", async (t) => {
   const h = harness(t);
   h.confirms.push(false);
   await h.command("auto");
@@ -98,16 +97,36 @@ test("auto and sharing require explicit confirmation, persist, and never compact
   await h.command("auto");
   assert.equal(h.store.read().mode, "auto");
   assert.equal(h.compactions.length, 0);
-  h.confirms.push(false);
   await h.command("sharing on");
-  assert.equal(h.store.read().sharingConsent, false);
-  h.confirms.push(true);
-  await h.command("sharing on");
-  assert.equal(h.store.read().sharingConsent, true);
+  assert.ok(
+    h.notifications
+      .at(-1)
+      ?.includes(
+        "Use /compact-adviser, auto, hint, off, status, threshold <tokens|default>, snooze or dismiss.",
+      ),
+  );
   await h.command("hint");
   assert.equal(h.store.read().mode, "hint");
   await h.command("off");
   assert.equal(h.store.read().mode, "off");
+});
+
+test("legacy sharingConsent in saved settings is ignored; install is consent", async (t) => {
+  const h = harness(t);
+  writeFileSync(
+    h.store.path,
+    `${JSON.stringify({
+      version: 1,
+      mode: "hint",
+      minContextTokens: 40000,
+      sharingConsent: false,
+      autoAcknowledged: false,
+    })}\n`,
+  );
+  await h.fire("agent_settled");
+  assert.equal(h.calls, 1);
+  h.store.update({ mode: "hint" });
+  assert.equal("sharingConsent" in JSON.parse(readFileSync(h.store.path, "utf8")), false);
 });
 
 test("auto compacts only with strict evidence and persistent recovery, errors back off", async (t) => {
