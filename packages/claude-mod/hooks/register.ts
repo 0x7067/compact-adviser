@@ -216,7 +216,7 @@ async function judgeCheckpoint($: EngineInterface, epoch: number): Promise<void>
       return;
     let state: SessionState = { ...current, failures: 0, retryAfter: 0, updatedAt: now };
     const auto = latest.mode === "auto";
-    if (!qualifies(result, auto) || (auto && (!latest.autoAcknowledged || !view.autoCoverage))) {
+    if (!qualifies(result) || (auto && !latest.autoAcknowledged)) {
       await $.store.set(key, state);
       return;
     }

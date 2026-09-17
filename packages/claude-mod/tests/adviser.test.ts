@@ -23,9 +23,17 @@ import {
 const MESSAGES = [{ role: "user" as const, text: "hello", toolUses: [] }];
 const HINT = "Potential session boundary detected. Run /compact to save tokens.";
 
+/** Drain `$.clock.after(0, …)` plus the async judgment it starts. */
+async function drain(w: World) {
+  for (let i = 0; i < 10; i++) {
+    await w.clock.settle();
+    await Promise.resolve();
+  }
+}
+
 async function turnEnd($: Engine, w: World, answer = answered()) {
   await $.turn.complete(answer);
-  await w.clock.settle();
+  await drain(w);
 }
 
 async function turn($: Engine, w: World, id = "t") {
@@ -68,7 +76,7 @@ describe("turn-end gates", () => {
     const result = await $.turn.complete(answered());
     expect(result.text).toBe(answered().answer);
     expect(w.journal.requests).toHaveLength(0);
-    await w.clock.settle();
+    await drain(w);
     expect(w.journal.requests).toHaveLength(1);
     const request = w.journal.requests[0] ?? { url: "", headers: {}, body: "" };
     expect(request.url).toBe("https://api.typesafe.ai/v1/systemone");
@@ -208,7 +216,7 @@ describe("turn-end gates", () => {
     await $.session.start(interactiveStart);
     await $.turn.complete(answered());
     await $.turn.start({ turnId: "t2", origin: { kind: "composer" } } as never);
-    await w.clock.settle();
+    await drain(w);
     expect(w.journal.requests).toHaveLength(0);
     expect(w.journal.statuses.includes(HINT)).toBe(false);
   });
@@ -225,7 +233,7 @@ describe("turn-end gates", () => {
     expect(w.journal.requests).toHaveLength(1);
     await $.turn.start({ turnId: "t2", origin: { kind: "composer" } } as never);
     release();
-    await w.clock.settle();
+    await drain(w);
     expect(w.journal.statuses.includes(HINT)).toBe(false);
   });
 
@@ -408,7 +416,7 @@ describe("automatic mode", () => {
     expect(w.journal.compactions).toHaveLength(1);
   });
 
-  test("hint-level confidence neither compacts nor hints in auto mode", async ($, on) => {
+  test("hint-level confidence also compacts in auto mode", async ($, on) => {
     const w = autoWorld(on);
     w.respond = async () => ({
       status: 200,
@@ -416,7 +424,7 @@ describe("automatic mode", () => {
     });
     await $.session.start(interactiveStart);
     await turnEnd($, w);
-    expect(w.journal.compactions).toHaveLength(0);
+    expect(w.journal.compactions).toHaveLength(1);
     expect(w.journal.statuses.includes(HINT)).toBe(false);
   });
 
@@ -428,12 +436,12 @@ describe("automatic mode", () => {
     expect(w.journal.compactions).toHaveLength(0);
   });
 
-  test("incomplete judge coverage never compacts", async ($, on) => {
+  test("incomplete judge coverage still compacts when the judgment qualifies", async ($, on) => {
     const w = world(on, { mode: "auto", consent: acknowledged });
     await $.session.start(interactiveStart);
     await turnEnd($, w);
     expect(w.journal.requests).toHaveLength(1);
-    expect(w.journal.compactions).toHaveLength(0);
+    expect(w.journal.compactions).toHaveLength(1);
   });
 
   test("a vetoed or failed compaction backs off for a minute without resetting counters", async ($, on) => {
@@ -643,13 +651,13 @@ describe("settings pane", () => {
     await $.session.start(interactiveStart);
     await $.ui.render(pane);
     await $.ui.press({ plugin: PLUGIN, key: "reset" });
-    await w.clock.settle();
+    await drain(w);
     expect(w.rows.get(`${PLUGIN}.minContextTokens`)).toBe(40000);
     expect(w.rows.get(`${PLUGIN}.mode`)).toBe("off");
     expect(w.journal.toasts.at(-1)).toBe("Minimum context saved: 40,000 tokens (all sessions).");
     await $.ui.render(pane);
     await $.ui.press({ plugin: PLUGIN, key: "status" });
-    await w.clock.settle();
+    await drain(w);
     expect(text(await $.ui.render(pane))).toContain(
       "Mode: off. Minimum: 40,000 tokens. Context: 60,000. Key: present.",
     );

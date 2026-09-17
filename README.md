@@ -52,7 +52,7 @@ Then run:
 /compact-adviser
 ```
 
-The mod has the same modes, constant 40,000-token minimum, and thresholds as the Pi extension.
+The mod has the same modes, constant 40,000-token minimum, and shared 0.90 judgment floor as the Pi extension.
 Installing the package is consent to send eligible checkpoint context to TypeSafe when a key is available.
 It relies on Claude Code's early-access mods API, verified on Claude Code 2.1.274, and does nothing unless `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS` is exactly `1`.
 See the [Claude Code guide](packages/claude-mod/README.md) for installation, settings, commands, privacy, and the differences from Pi.

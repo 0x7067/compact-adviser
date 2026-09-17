@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import test from "node:test";
-import { snapshot } from "../src/context.ts";
 import { requestLogPath } from "../src/log.ts";
 import { restoreState } from "../src/state.ts";
 import { flush, harness, success } from "./helpers.ts";
@@ -130,10 +129,9 @@ test("legacy sharingConsent in saved settings is ignored; install is consent", a
   assert.equal("sharingConsent" in JSON.parse(readFileSync(h.store.path, "utf8")), false);
 });
 
-test("auto compacts only with strict evidence and persistent recovery, errors back off", async (t) => {
+test("auto compacts at a qualifying checkpoint, errors back off", async (t) => {
   const h = harness(t);
   h.enable("auto");
-  assert.equal(snapshot(h.ctx).autoCoverage, true);
   await h.fire("agent_settled");
   assert.equal(h.compactions.length, 1);
   h.compactions[0].onError?.(new Error("fixture cancel"));
@@ -146,13 +144,13 @@ test("auto compacts only with strict evidence and persistent recovery, errors ba
   assert.equal(h.calls, 2);
 });
 
-test("auto abstains when recent content or user constraints exceed coverage", async (t) => {
+test("auto still compacts when recent content exceeds coverage", async (t) => {
   const h = harness(t);
   h.enable("auto");
   h.next("Critical unsaved result ".repeat(2000));
   await h.fire("agent_settled");
   assert.equal(h.calls, 1);
-  assert.equal(h.compactions.length, 0);
+  assert.equal(h.compactions.length, 1);
 });
 
 test("late answers are discarded on all native invalidation events", async (t) => {

@@ -9,6 +9,7 @@ import {
   judge,
   MAX_REQUEST_BYTES,
   parseJudgment,
+  QUALIFY_FLOOR,
   qualifies,
   requestBody,
 } from "../lib/judge.ts";
@@ -404,11 +405,11 @@ describe("jev client", () => {
     ).toThrow(JudgeError);
   });
 
-  test("the phase floor decides and matches the Pi extension", () => {
+  test("the shared phase floor decides hint and auto the same way", () => {
     const j = (v: Parameters<typeof jevAnswer>[0]) => parseJudgment(jevAnswer(v));
-    expect(qualifies(j({ completed: 0.9 }), false)).toBe(true);
-    expect(qualifies(j({ completed: 0.89 }), false)).toBe(false);
-    expect(qualifies(j({ completed: 0.97 }), true)).toBe(false);
-    expect(qualifies(j({ completed: 0.98 }), true)).toBe(true);
+    expect(QUALIFY_FLOOR).toBe(0.9);
+    expect(qualifies(j({ completed: 0.9 }))).toBe(true);
+    expect(qualifies(j({ completed: 0.89 }))).toBe(false);
+    expect(qualifies(j({ completed: 0.95 }))).toBe(true);
   });
 });

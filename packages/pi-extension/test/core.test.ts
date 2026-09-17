@@ -11,6 +11,7 @@ import {
   judge,
   MAX_REQUEST_BYTES,
   parseJudgment,
+  QUALIFY_FLOOR,
   qualifies,
   requestBody,
 } from "../src/judge.ts";
@@ -143,17 +144,24 @@ test("tool results count in the 64-message window and long dumps keep a head and
 
 test("request contains typed factors; output validation rejects malformed/contradictory confidence evidence", () => {
   const valid = parseJudgment(apiResponse());
-  assert.ok(qualifies(valid, false));
-  assert.ok(qualifies(valid, true));
-  const hintOnly = {
+  assert.equal(QUALIFY_FLOOR, 0.9);
+  assert.ok(qualifies(valid));
+  const atFloor = {
     ...valid,
     phase: {
       ...valid.phase,
-      probabilities: { completed_checkpoint: 0.95, still_in_progress: 0.03, unclear: 0.02 },
+      probabilities: { completed_checkpoint: 0.9, still_in_progress: 0.05, unclear: 0.05 },
     },
   };
-  assert.ok(qualifies(hintOnly, false));
-  assert.ok(!qualifies(hintOnly, true));
+  const belowFloor = {
+    ...valid,
+    phase: {
+      ...valid.phase,
+      probabilities: { completed_checkpoint: 0.89, still_in_progress: 0.06, unclear: 0.05 },
+    },
+  };
+  assert.ok(qualifies(atFloor));
+  assert.ok(!qualifies(belowFloor));
   const bad = apiResponse();
   bad.answers.phase.probabilities.completed_checkpoint = 0.6;
   assert.throws(() => parseJudgment(bad));

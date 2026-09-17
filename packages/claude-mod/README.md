@@ -136,13 +136,14 @@ Local code combines the results; Jev does not generate an explanation.
 Malformed responses, contradictory factors, API failures, and timeouts never produce a hint or a compaction.
 Requests have a two-second deadline, no immediate retry, and capped exponential backoff.
 
-Hint mode requires both positive probabilities at 0.90 or more; automatic mode requires 0.98.
+Hint and auto share one 0.90 floor on the completed-checkpoint probability.
 These are conservative starting knobs, **not measured safety guarantees**.
 
 A hint pins the line `compact-adviser: Potential session boundary detected. Run /compact to save tokens.` under the prompt until your next turn, shows it briefly as a notice, and proposes `/compact` as the prompt box's dim suggestion (Tab to take it).
 Claude Code drops a plugin notice that follows another within two seconds; the pinned line is the reliable signal.
 
-Automatic mode additionally requires the first-use acknowledgement and complete judge coverage: no truncated recent text, no redaction, no omitted user constraints, and a transcript within the 4,096 messages Claude Code exposes to mods.
+Automatic mode still requires the first-use acknowledgement to turn auto on.
+Once enabled, it fires on the same qualifying judgment a hint would.
 Immediately before acting, the mod rereads saved settings, re-checks eligibility, and confirms no newer turn started.
 It then calls Claude Code's own compaction (`$.session.compact`) once, with instructions to keep the current work, pending tasks, referenced files, and next step exact.
 A vetoed or failed compaction backs off for a minute and is reported.
