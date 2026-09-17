@@ -184,4 +184,5 @@ No shared Pi installation or real user configuration is modified.
 
 The tests establish integration and safety behavior, **not Jev's classification accuracy**.
 A real continuation-quality evaluation with consented transcripts and an authenticated Jev account remains necessary before automatic timing can be called reliable.
+The judgment-eval harness, label schema, and gold rubric live in [eval/](eval/README.md). Session transcripts, checkpoints, worksheets, and results stay gitignored under `eval/local/`.
 See [SECURITY.md](../../SECURITY.md) for development dependency audit notes.

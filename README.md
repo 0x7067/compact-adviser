@@ -78,4 +78,8 @@ npm run test:e2e:claude-mod
 
 Its checks require the installed Claude Code; the live regression also requires `tmux` and uses an isolated configuration directory, a local stand-in for the model API, and a local TypeSafe fixture.
 
+The judgment-eval harness (replay, scoring, metrics, label rubric) lives in
+[packages/pi-extension/eval/](packages/pi-extension/eval/README.md). It is not a
+published dataset: point it at your own Pi sessions and keep transcripts local.
+
 No hosted service or repository publication is needed.

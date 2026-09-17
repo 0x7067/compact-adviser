@@ -1,0 +1,17 @@
+[
+  {
+    "label": "interactive-1",
+    "stratum": "interactive",
+    "file": "/absolute/path/to/agent/sessions/<project>/<session>.jsonl"
+  },
+  {
+    "label": "coding-1",
+    "stratum": "coding",
+    "file": "/absolute/path/to/agent/sessions/<project>/<session>.jsonl"
+  },
+  {
+    "label": "longturn-1",
+    "stratum": "longturn",
+    "file": "/absolute/path/to/agent/sessions/<project>/<session>.jsonl"
+  }
+]
