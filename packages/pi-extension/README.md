@@ -123,11 +123,10 @@ Pi deliberately reports unknown usage immediately after compaction; the extensio
 
 ## The judgment and its limits
 
-One HTTPS request to `https://api.typesafe.ai/v1/systemone` uses `jev-latest` and three independent typed factors:
+One HTTPS request to `https://api.typesafe.ai/v1/systemone` uses `jev-latest` and two independent typed factors:
 
 1. Completed checkpoint, still in progress, or unclear.
 2. Known continuation is recoverable, needs exact older details, or unclear.
-3. Probability of a volatile or unsaved dependency.
 
 Local code combines the results and renders the reason.
 Jev does not generate an explanatory paragraph.
@@ -136,7 +135,7 @@ Requests have a two-second deadline, no immediate retry, and capped backoff on l
 The remote call is not awaited by Pi's event dispatcher.
 Input, model/branch/session changes, and native compaction invalidate an outstanding result.
 
-Initial policy thresholds are 0.90 for both positive Choice probabilities and at most 0.10 for volatile dependencies in hint mode; automatic mode uses 0.98 and 0.02.
+Initial policy thresholds are 0.90 for both Choice probabilities in hint mode; automatic mode uses 0.98.
 These are conservative starting knobs in code, **not measured safety guarantees**.
 Do not interpret a concentrated probability distribution as proof that a summary will preserve every useful fact.
 

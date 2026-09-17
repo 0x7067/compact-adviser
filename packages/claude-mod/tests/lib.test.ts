@@ -306,7 +306,7 @@ describe("jev client", () => {
   });
   const never = () => new Promise<never>(() => undefined);
 
-  test("posts jev-latest with the bearer key in a header and the three questions", async () => {
+  test("posts jev-latest with the bearer key in a header and the two questions", async () => {
     const calls: { url: string; init: { headers: Record<string, string>; body: string } }[] = [];
     const result = await judge({ recent: [] }, "tsk-secret", {
       fetch: async (url, init) => {
@@ -320,7 +320,7 @@ describe("jev client", () => {
     expect(calls[0]?.init.headers.Authorization).toBe("Bearer tsk-secret");
     const body = JSON.parse(calls[0]?.init.body ?? "{}");
     expect(body.model).toBe("jev-latest");
-    expect(Object.keys(body.questions)).toEqual(["phase", "continuation", "volatile_dependency"]);
+    expect(Object.keys(body.questions)).toEqual(["phase", "continuation"]);
     expect(calls[0]?.init.body.includes("tsk-secret")).toBe(false);
     expect(result.phase.choice).toBe("completed_checkpoint");
   });
@@ -389,7 +389,7 @@ describe("jev client", () => {
     ).toThrow(JudgeError);
     expect(
       mutate((a) => {
-        a.answers.volatile_dependency.noul = 1.2;
+        a.answers.continuation.confidence = 1.2;
       }),
     ).toThrow(JudgeError);
     expect(
@@ -406,11 +406,11 @@ describe("jev client", () => {
 
   test("hint and automatic floors match the Pi extension", () => {
     const j = (v: Parameters<typeof jevAnswer>[0]) => parseJudgment(jevAnswer(v));
-    expect(qualifies(j({ completed: 0.9, recoverable: 0.9, volatile: 0.1 }), false)).toBe(true);
-    expect(qualifies(j({ completed: 0.89, recoverable: 0.99, volatile: 0.01 }), false)).toBe(false);
-    expect(qualifies(j({ completed: 0.99, recoverable: 0.99, volatile: 0.11 }), false)).toBe(false);
-    expect(qualifies(j({ completed: 0.97, recoverable: 0.99, volatile: 0.01 }), true)).toBe(false);
-    expect(qualifies(j({ completed: 0.98, recoverable: 0.98, volatile: 0.02 }), true)).toBe(true);
-    expect(qualifies(j({ completed: 0.99, recoverable: 0.99, volatile: 0.03 }), true)).toBe(false);
+    expect(qualifies(j({ completed: 0.9, recoverable: 0.9 }), false)).toBe(true);
+    expect(qualifies(j({ completed: 0.89, recoverable: 0.99 }), false)).toBe(false);
+    expect(qualifies(j({ completed: 0.99, recoverable: 0.89 }), false)).toBe(false);
+    expect(qualifies(j({ completed: 0.97, recoverable: 0.99 }), true)).toBe(false);
+    expect(qualifies(j({ completed: 0.98, recoverable: 0.98 }), true)).toBe(true);
+    expect(qualifies(j({ completed: 0.99, recoverable: 0.97 }), true)).toBe(false);
   });
 });
