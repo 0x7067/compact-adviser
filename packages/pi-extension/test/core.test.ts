@@ -158,6 +158,16 @@ test("request contains typed factors; output validation rejects malformed/contra
   };
   assert.ok(qualifies(hintOnly, false));
   assert.ok(!qualifies(hintOnly, true));
+  // Phase confidence decides; an unsure continuation is not a second floor.
+  const unsureContinuation = {
+    ...valid,
+    continuation: {
+      ...valid.continuation,
+      probabilities: { recoverable: 0.4, needs_older_details: 0.35, unclear: 0.25 },
+    },
+  };
+  assert.ok(qualifies(unsureContinuation, false));
+  assert.ok(qualifies(unsureContinuation, true));
   const contradiction = {
     ...valid,
     continuation: { ...valid.continuation, choice: "needs_older_details" },

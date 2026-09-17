@@ -3,3 +3,7 @@ coverage/
 .env
 .DS_Store
 .test-tmp/
+
+# Local-only judgment eval scratch; the canonical pack lives outside the repo.
+eval/
+evallab/

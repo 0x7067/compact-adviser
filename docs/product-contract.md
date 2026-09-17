@@ -15,6 +15,7 @@ There is no percentage-of-context-window condition.
 - Long tool-result dumps keep a head and tail slice with an explicit middle omission marker so one result cannot consume the tail budget.
 - Optional TypeSafe request logging is off by default and can be enabled from the compact-adviser settings menu. When on, each request body is appended to a local jsonl log with existing secret redaction and never the API key.
 - Judge whether known next work can continue without exact older details, not whether context is merely large.
+- Phase confidence decides the hint: the completion probability must clear the mode floor. Continuation is a veto, not a second floor - it blocks only when it names a dependency on older detail. Requiring both probabilities to clear the same bar suppressed most genuine checkpoints without blocking bad ones.
 - Uncertain, stale, interrupted, or failed judgments leave context alone.
 - Installing or loading the package is consent to send eligible checkpoint context to TypeSafe when a key is available and other product gates pass (mode, minimum context, idle session, and so on). Secrets are never settings values.
 - There is no separate sharing toggle. A saved `sharingConsent` value from an older version is ignored.

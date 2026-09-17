@@ -124,13 +124,18 @@ export function parseJudgment(value: unknown): Judgment {
   };
 }
 
+/**
+ * Phase confidence carries the decision. Continuation acts as a veto, not a
+ * second confidence gate: requiring both to clear the same bar removed most
+ * genuine checkpoints without blocking bad ones, because a high recoverable
+ * probability is not evidence about the phase.
+ */
 export function qualifies(j: Judgment, auto: boolean): boolean {
   const threshold = auto ? 0.98 : 0.9;
   return (
     j.phase.choice === "completed_checkpoint" &&
-    j.continuation.choice === "recoverable" &&
     (j.phase.probabilities.completed_checkpoint ?? 0) >= threshold &&
-    (j.continuation.probabilities.recoverable ?? 0) >= threshold
+    j.continuation.choice !== "needs_older_details"
   );
 }
 
