@@ -7,12 +7,48 @@ import {
   estimateTokens,
 } from "@earendil-works/pi-coding-agent";
 
+/** Recent assistant and toolResult messages considered for the TypeSafe/Jev snapshot. */
+export const RECENT_TAIL_MESSAGES = 64;
+/** Per-tool-result byte cap inside the recent tail; long results are middle-truncated. */
+export const TOOL_RESULT_BUDGET = 512;
+
 function clip(text: string, limit: number): { text: string; truncated: boolean } {
   if (Buffer.byteLength(text) <= limit) return { text, truncated: false };
   return {
     text: Buffer.from(text)
       .subarray(0, Math.max(0, limit - 3))
       .toString("utf8"),
+    truncated: true,
+  };
+}
+
+function truncatedMarker(omitted: number): string {
+  return `...[truncated ${omitted} bytes]...`;
+}
+
+/** Keep a head and tail slice so one long tool dump cannot hide its start or end. */
+export function clipMiddle(text: string, limit: number): { text: string; truncated: boolean } {
+  const raw = Buffer.from(text);
+  if (raw.byteLength <= limit) return { text, truncated: false };
+  if (limit <= 0) return { text: "", truncated: true };
+  let omitted = raw.byteLength;
+  let head = 0;
+  let tail = 0;
+  for (let i = 0; i < 5; i++) {
+    const markerBytes = Buffer.byteLength(truncatedMarker(omitted));
+    if (markerBytes >= limit) return clip(text, limit);
+    const keep = limit - markerBytes;
+    head = Math.ceil(keep / 2);
+    tail = Math.floor(keep / 2);
+    omitted = Math.max(0, raw.byteLength - head - tail);
+  }
+  const marker = truncatedMarker(omitted);
+  return {
+    text: Buffer.concat([
+      raw.subarray(0, head),
+      Buffer.from(marker),
+      raw.subarray(raw.byteLength - tail),
+    ]).toString("utf8"),
     truncated: true,
   };
 }
@@ -100,8 +136,11 @@ export function snapshot(ctx: ExtensionContext) {
       if (part.truncated) omittedUsers++;
       if (part.text) users.unshift({ role: "user", text: part.text });
       userBudget = Math.max(0, userBudget - Buffer.byteLength(part.text));
-    } else if (i >= messages.length - 6) {
-      const part = clip(cleaned.text, Math.min(tailBudget, m.role === "toolResult" ? 512 : 8000));
+    } else if (i >= messages.length - RECENT_TAIL_MESSAGES) {
+      const part =
+        m.role === "toolResult"
+          ? clipMiddle(cleaned.text, Math.min(tailBudget, TOOL_RESULT_BUDGET))
+          : clip(cleaned.text, Math.min(tailBudget, 8000));
       recentTruncated ||= part.truncated;
       tailBudget = Math.max(0, tailBudget - Buffer.byteLength(part.text));
       recent.unshift({
@@ -120,7 +159,7 @@ export function snapshot(ctx: ExtensionContext) {
     savedArtifacts: [...artifacts].slice(-8).map((p) => clip(p, 256).text),
     coverage: {
       omittedUserMessages: omittedUsers,
-      olderMessagesOmitted: Math.max(0, messages.length - 6),
+      olderMessagesOmitted: Math.max(0, messages.length - RECENT_TAIL_MESSAGES),
       recentTextTruncated: recentTruncated,
       hasImages,
       redacted,

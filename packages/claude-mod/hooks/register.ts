@@ -23,6 +23,7 @@ import {
   type Consent,
   DEFAULT_MINIMUM,
   formatTokens,
+  LOG_KEY,
   MINIMUM_KEY,
   MODE_KEY,
   type Mode,
@@ -31,7 +32,8 @@ import {
   readConfig,
 } from "../lib/config.ts";
 import { parseDotenvKey } from "../lib/env.ts";
-import { JudgeError, judge, qualifies } from "../lib/judge.ts";
+import { JudgeError, judge, qualifies, requestBody } from "../lib/judge.ts";
+import { requestLogLine, requestLogPath } from "../lib/log.ts";
 import { snapshot } from "../lib/snapshot.ts";
 import {
   backoff,
@@ -122,6 +124,10 @@ function judgeFailureMessage(error: unknown): string {
     : "TypeSafe judgment unavailable; context left unchanged.";
 }
 
+async function logHome($: EngineInterface): Promise<string> {
+  return ((await $.env.get("HOME")) ?? (await $.session.cwd())).replace(/[\\/]+$/, "");
+}
+
 function notice($: EngineInterface, message: string): void {
   if (diagnostic === message) return;
   diagnostic = message;
@@ -169,6 +175,20 @@ async function judgeCheckpoint($: EngineInterface, epoch: number): Promise<void>
     if (view.conversationTokens <= 20000) return;
     const fingerprint = await checkpointKey(view.checkpointText);
     if ((await loadState($)).state.lastHintKey === fingerprint) return;
+    if (initial.logRequests) {
+      try {
+        const path = requestLogPath(await logHome($));
+        let existing = "";
+        try {
+          existing = await $.fs.read(path);
+        } catch {
+          existing = "";
+        }
+        await $.fs.write(path, `${existing}${requestLogLine(requestBody(view.state))}`);
+      } catch {
+        // Request logging must not replace or delay the judgment.
+      }
+    }
     const endpoint = await testEndpoint($);
     let result: Awaited<ReturnType<typeof judge>>;
     try {
@@ -282,7 +302,7 @@ async function settle($: EngineInterface): Promise<void> {
 async function saveRow(
   $: EngineInterface,
   key: string,
-  value: string | number,
+  value: string | number | boolean,
   message: string,
 ): Promise<boolean> {
   await invalidate($);
@@ -323,7 +343,7 @@ function openPane($: EngineInterface): Promise<void> {
     title: "Compact adviser (saved for all sessions)",
     focus: true,
     closeOnEscape: true,
-    rows: 8,
+    rows: 10,
   });
 }
 
@@ -392,6 +412,17 @@ async function changeMinimum($: EngineInterface, text: string): Promise<boolean>
   );
 }
 
+async function changeLogRequests($: EngineInterface, enabled: boolean): Promise<void> {
+  await saveRow(
+    $,
+    LOG_KEY,
+    enabled,
+    enabled
+      ? `TypeSafe request logging on (all sessions). ${requestLogPath(await logHome($))}`
+      : "TypeSafe request logging off (all sessions).",
+  );
+}
+
 async function statusText($: EngineInterface): Promise<string> {
   const config = await loadConfig($);
   const { state } = await loadState($);
@@ -409,7 +440,7 @@ async function statusText($: EngineInterface): Promise<string> {
       ? (cooldownReason(state, tokens, await $.clock.now()) ??
         "No cooldown; semantic checks still apply.")
       : "Waiting for fresh model usage.";
-  return `Mode: ${config.mode}${config.mode === "auto" && !config.autoAcknowledged ? " (not confirmed)" : ""}. Minimum: ${formatTokens(config.minContextTokens)} tokens. Context: ${typeof tokens === "number" ? formatTokens(tokens) : "unknown"}. Key: ${(await apiKey($)) ? "present" : "missing"}. ${cooldown}${engine} Settings: /config (compact-adviser rows) and /compact-adviser.`;
+  return `Mode: ${config.mode}${config.mode === "auto" && !config.autoAcknowledged ? " (not confirmed)" : ""}. Minimum: ${formatTokens(config.minContextTokens)} tokens. Context: ${typeof tokens === "number" ? formatTokens(tokens) : "unknown"}. Key: ${(await apiKey($)) ? "present" : "missing"}. ${cooldown}${engine} Request log: ${config.logRequests ? requestLogPath(await logHome($)) : "off"}. Settings: /config (compact-adviser rows) and /compact-adviser.`;
 }
 
 async function snoozeOrDismiss($: EngineInterface, command: "snooze" | "dismiss") {
@@ -563,6 +594,19 @@ export const register: Register = (on, options) => {
         ],
         onSelect: (mode: string) => {
           if (mode !== config.mode) run(() => changeMode($, mode as Mode, true));
+        },
+      }),
+      Select({
+        key: "logRequests",
+        label: "Log TypeSafe requests",
+        value: config.logRequests ? "on" : "off",
+        options: [
+          { value: "off", label: "Off (default)" },
+          { value: "on", label: "On" },
+        ],
+        onSelect: (value: string) => {
+          const enabled = value === "on";
+          if (enabled !== config.logRequests) run(() => changeLogRequests($, enabled));
         },
       }),
       Input({

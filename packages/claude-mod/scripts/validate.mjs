@@ -7,20 +7,13 @@ const version = claudeVersion();
 const { status, output } = run(["plugin", "validate", "--strict", PACKAGE]);
 const expected = [
   "hooks: session.start, turn.start, turn.complete, session.compact, command.run{command=compact-adviser}, ui.render{component=Pane}",
-  "env reads: CLAUDE_CODE_ENABLE_FUNCTION_HOOKS, COMPACT_ADVISER_TEST_ENDPOINT, TYPESAFE_API_KEY",
+  "env reads: CLAUDE_CODE_ENABLE_FUNCTION_HOOKS, COMPACT_ADVISER_TEST_ENDPOINT, HOME, TYPESAFE_API_KEY",
   "env writes: nothing",
-  "$.fs.read (via apiKey)",
+  "$.fs.read (via apiKey, judgeCheckpoint)",
+  "$.fs.write (via judgeCheckpoint)",
   "Validation passed",
 ];
-const forbidden = [
-  "process.run",
-  "env.set",
-  "prompt.submit",
-  "prompt.fill",
-  "tool.call",
-  "fs.write",
-  "model.",
-];
+const forbidden = ["process.run", "env.set", "prompt.submit", "prompt.fill", "tool.call", "model."];
 const problems = [
   ...(status === 0 ? [] : [`exit status ${status}`]),
   ...expected.filter((line) => !output.includes(line)).map((line) => `missing: ${line}`),

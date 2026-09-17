@@ -4,7 +4,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { lockSync } from "proper-lockfile";
 import { ConfigStore, DEFAULT_CONFIG, parseMinimum } from "../src/config.ts";
-import { snapshot } from "../src/context.ts";
+import { RECENT_TAIL_MESSAGES, snapshot } from "../src/context.ts";
 import { parseDotenvKey, resolveTypesafeApiKey } from "../src/env.ts";
 import {
   ENDPOINT,
@@ -14,7 +14,7 @@ import {
   qualifies,
   requestBody,
 } from "../src/judge.ts";
-import { apiResponse, assistant, harness, temp } from "./helpers.ts";
+import { apiResponse, assistant, harness, temp, toolResult } from "./helpers.ts";
 
 test("config defaults, atomic persistence, field merging, contention and invalid files", (t) => {
   const dir = temp(t),
@@ -59,6 +59,7 @@ test("config defaults, atomic persistence, field merging, contention and invalid
     mode: "off",
     minContextTokens: 50000,
     autoAcknowledged: true,
+    logRequests: false,
   });
   a.update({ mode: "hint" });
   assert.equal("sharingConsent" in JSON.parse(readFileSync(a.path, "utf8")), false);
@@ -97,6 +98,47 @@ test("bounded snapshot excludes system prompt, thinking, images and known secret
   assert.ok(!body.includes("INTERNALSECRET"));
   assert.equal(result.state.coverage.hasImages, true);
   assert.equal(result.autoCoverage, false);
+});
+
+test("recent tail keeps the last 64 messages and still clips to byte budgets", (t) => {
+  const h = harness(t);
+  const markers = Array.from({ length: 80 }, (_, i) => `unique-tail-${i}`);
+  for (const marker of markers) h.sm.appendMessage(assistant(marker));
+  const view = snapshot(h.ctx);
+  const recentText = view.state.recent.map((m) => m.text).join("\n");
+  for (const marker of markers.slice(-RECENT_TAIL_MESSAGES)) assert.ok(recentText.includes(marker));
+  assert.ok(!recentText.includes(markers[0] ?? ""));
+  assert.ok(view.state.recent.filter((m) => m.role !== "user").length > 6);
+  assert.equal(view.state.coverage.recentTextTruncated, false);
+  assert.ok(view.state.coverage.olderMessagesOmitted > 0);
+  h.sm.appendMessage(assistant("Z".repeat(20000)));
+  const clipped = snapshot(h.ctx);
+  assert.equal(clipped.state.coverage.recentTextTruncated, true);
+  assert.ok(Buffer.byteLength(requestBody(clipped.state)) <= MAX_REQUEST_BYTES);
+});
+
+test("tool results count in the 64-message window and long dumps keep a head and tail", (t) => {
+  const h = harness(t);
+  const huge = `TOOLHEAD${"m".repeat(4000)}TOOLMID${"n".repeat(4000)}TOOLTAIL`;
+  h.sm.appendMessage(assistant("SIBLING-OLD"));
+  h.sm.appendMessage(toolResult(huge));
+  h.sm.appendMessage(assistant("SIBLING-NEW"));
+  const view = snapshot(h.ctx);
+  const recentText = view.state.recent.map((m) => m.text).join("\n");
+  const tool = view.state.recent.find((m) => m.role === "toolResult");
+  assert.ok(recentText.includes("SIBLING-OLD"));
+  assert.ok(recentText.includes("SIBLING-NEW"));
+  assert.ok(tool);
+  assert.ok(tool.text.includes("TOOLHEAD"));
+  assert.ok(tool.text.includes("TOOLTAIL"));
+  assert.ok(/\[truncated \d+ bytes\]/.test(tool.text));
+  assert.ok(!tool.text.includes("TOOLMID"));
+  assert.ok(Buffer.byteLength(tool.text) <= 512);
+  assert.ok(Buffer.byteLength(requestBody(view.state)) <= MAX_REQUEST_BYTES);
+  h.sm.appendMessage(toolResult("OUTSIDE-WINDOW"));
+  for (let i = 0; i < RECENT_TAIL_MESSAGES; i++) h.sm.appendMessage(assistant(`pad-${i}`));
+  const omitted = snapshot(h.ctx);
+  assert.ok(!omitted.state.recent.some((m) => m.text.includes("OUTSIDE-WINDOW")));
 });
 
 test("request contains typed factors; output validation rejects malformed/contradictory confidence evidence", () => {

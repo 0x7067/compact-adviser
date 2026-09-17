@@ -27,6 +27,7 @@ export type Journal = {
   messageReads: number;
   usageReads: number;
   fsReads: string[];
+  fsWrites: { path: string; text: string }[];
 };
 
 export type Verdict = {
@@ -72,7 +73,7 @@ export type World = {
   clock: MockClock;
   store: Map<string, unknown>;
   journal: Journal;
-  rows: Map<string, string | number>;
+  rows: Map<string, string | number | boolean>;
   /** The next answers `$.ui.ask` gives, in order; an `undefined` entry dismisses the dialog. */
   answers: (string | undefined)[];
   usage: { tokens?: number; window: number; autoCompactThreshold?: number };
@@ -93,6 +94,7 @@ export type WorldOptions = {
   consent?: { autoAcknowledged: boolean } | "absent" | unknown;
   mode?: string;
   minimum?: number;
+  logRequests?: boolean;
   store?: Record<string, unknown>;
   /** Text `$.fs.read(".env")` should return; omit to treat the file as missing. */
   dotenv?: string;
@@ -130,6 +132,7 @@ export function world(on: On, options: WorldOptions = {}): World {
   const functionHooks = "functionHooks" in options ? options.functionHooks : "1";
   const key = "key" in options ? options.key : KEY;
   mock.env(on, {
+    HOME: "/home/fixture",
     ...(functionHooks === undefined ? {} : { CLAUDE_CODE_ENABLE_FUNCTION_HOOKS: functionHooks }),
     ...(key === undefined ? {} : { TYPESAFE_API_KEY: key }),
     ...(options.endpoint === undefined ? {} : { COMPACT_ADVISER_TEST_ENDPOINT: options.endpoint }),
@@ -168,10 +171,12 @@ export function world(on: On, options: WorldOptions = {}): World {
     messageReads: 0,
     usageReads: 0,
     fsReads: [],
+    fsWrites: [],
   };
-  const rows = new Map<string, string | number>([
+  const rows = new Map<string, string | number | boolean>([
     [`${PLUGIN}.mode`, options.mode ?? "hint"],
     [`${PLUGIN}.minContextTokens`, options.minimum ?? 40000],
+    [`${PLUGIN}.logRequests`, options.logRequests ?? false],
   ]);
   let configDenial: string | undefined;
   const w: World = {
@@ -247,7 +252,8 @@ export function world(on: On, options: WorldOptions = {}): World {
     value: [...rows].map(([key, value]) => ({
       key,
       label: key,
-      kind: typeof value === "number" ? "number" : "choice",
+      kind:
+        typeof value === "number" ? "number" : typeof value === "boolean" ? "boolean" : "choice",
       value,
       provider: { plugin: PLUGIN, tier: "user" },
       isLocked: false,
@@ -256,7 +262,7 @@ export function world(on: On, options: WorldOptions = {}): World {
   on("config.set", async (_$, e) => {
     journal.configSets.push({ key: e.key, value: e.value });
     if (configDenial !== undefined) return { deny: configDenial };
-    rows.set(e.key, e.value as string | number);
+    rows.set(e.key, e.value as string | number | boolean);
     return { value: e.value };
   });
   on("command.register", async (_$, e) => {
@@ -302,7 +308,16 @@ export function world(on: On, options: WorldOptions = {}): World {
     const envFile = e.path === ".env" || e.path.endsWith("/.env");
     if (envFile) journal.fsReads.push(e.path);
     if (envFile && options.dotenv !== undefined) return { value: options.dotenv };
+    if (String(e.path).endsWith("compact-adviser-requests.jsonl")) {
+      journal.fsReads.push(e.path);
+      throw new Error("ENOENT");
+    }
     return next(e);
+  });
+  on("fs.write", async (_$, e) => {
+    const write = e as { path: string; text: string };
+    journal.fsWrites.push({ path: write.path, text: write.text });
+    return { value: undefined };
   });
   on("http.fetch", async (_$, e) => {
     const init = (e.init ?? {}) as { headers?: Record<string, string>; body?: string };
@@ -346,7 +361,7 @@ export const pane = {
   surface: "terminal" as const,
   component: "Pane" as const,
   requestId: PLUGIN,
-  viewport: { columns: 100, rows: 8 },
+  viewport: { columns: 100, rows: 10 },
   props: { title: "Compact adviser (saved for all sessions)", isFocused: true },
 } as never;
 

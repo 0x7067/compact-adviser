@@ -19,19 +19,51 @@ export interface MessageLike {
 
 /** `$.session.messages()` answers at most this many; a full answer means older ones exist. */
 export const MESSAGE_LIMIT = 4096;
+/** Recent `$.session.messages()` entries considered for the TypeSafe/Jev snapshot, including assistant tool results. */
+export const RECENT_TAIL_MESSAGES = 64;
+/** Per-tool-result byte cap inside the recent tail; long results are middle-truncated. */
+export const TOOL_RESULT_BUDGET = 512;
 export const SUMMARY_PREFIX = "This session is being continued from a previous conversation";
 const WRITE_TOOLS = new Set(["Write", "Edit", "MultiEdit", "NotebookEdit"]);
 
 function clip(text: string, limit: number): { text: string; truncated: boolean } {
-  const bytes = new TextEncoder().encode(text);
-  if (bytes.byteLength <= limit) return { text, truncated: false };
-  const cut = new TextDecoder().decode(bytes.subarray(0, Math.max(0, limit - 3)));
+  const encoded = new TextEncoder().encode(text);
+  if (encoded.byteLength <= limit) return { text, truncated: false };
+  const cut = new TextDecoder().decode(encoded.subarray(0, Math.max(0, limit - 3)));
   // A multi-byte character split at the cut decodes as U+FFFD; drop it.
   return { text: cut.replace(/�$/, ""), truncated: true };
 }
 
 function bytes(text: string): number {
   return new TextEncoder().encode(text).byteLength;
+}
+
+function truncatedMarker(omitted: number): string {
+  return `...[truncated ${omitted} bytes]...`;
+}
+
+/** Keep a head and tail slice so one long tool dump cannot hide its start or end. */
+export function clipMiddle(text: string, limit: number): { text: string; truncated: boolean } {
+  const raw = new TextEncoder().encode(text);
+  if (raw.byteLength <= limit) return { text, truncated: false };
+  if (limit <= 0) return { text: "", truncated: true };
+  let omitted = raw.byteLength;
+  let head = 0;
+  let tail = 0;
+  for (let i = 0; i < 5; i++) {
+    const markerBytes = bytes(truncatedMarker(omitted));
+    if (markerBytes >= limit) return clip(text, limit);
+    const keep = limit - markerBytes;
+    head = Math.ceil(keep / 2);
+    tail = Math.floor(keep / 2);
+    omitted = Math.max(0, raw.byteLength - head - tail);
+  }
+  const marker = truncatedMarker(omitted);
+  const out = new Uint8Array(head + bytes(marker) + tail);
+  out.set(raw.subarray(0, head), 0);
+  out.set(new TextEncoder().encode(marker), head);
+  out.set(raw.subarray(raw.byteLength - tail), head + bytes(marker));
+  return { text: new TextDecoder().decode(out).replace(/�/g, ""), truncated: true };
 }
 
 const sensitivePath =
@@ -133,7 +165,7 @@ export function snapshot(messages: readonly MessageLike[]): Snapshot {
       if (part.truncated) omittedUsers++;
       if (part.text) users.unshift({ role: "user", text: part.text });
       userBudget = Math.max(0, userBudget - bytes(part.text));
-    } else if (m.role === "assistant" && i >= messages.length - 6) {
+    } else if (m.role === "assistant" && i >= messages.length - RECENT_TAIL_MESSAGES) {
       const part = clip(cleaned.text, Math.min(tailBudget, 8000));
       recentTruncated ||= part.truncated;
       tailBudget = Math.max(0, tailBudget - bytes(part.text));
@@ -146,7 +178,7 @@ export function snapshot(messages: readonly MessageLike[]): Snapshot {
         } else {
           const r = redact(use.text ?? "");
           redacted ||= r.redacted;
-          const c = clip(r.text, Math.min(tailBudget, 512));
+          const c = clipMiddle(r.text, Math.min(tailBudget, TOOL_RESULT_BUDGET));
           recentTruncated ||= c.truncated;
           excerpt = c.text;
         }
@@ -167,7 +199,7 @@ export function snapshot(messages: readonly MessageLike[]): Snapshot {
     savedArtifacts: [...artifacts].slice(-8).map((p) => clip(p, 256).text),
     coverage: {
       omittedUserMessages: omittedUsers,
-      olderMessagesOmitted: Math.max(0, messages.length - 6),
+      olderMessagesOmitted: Math.max(0, messages.length - RECENT_TAIL_MESSAGES),
       recentTextTruncated: recentTruncated,
       // Claude Code's transcript view carries text only; images cannot be detected here.
       hasImages: false,

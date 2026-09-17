@@ -1,6 +1,6 @@
 // Persistent preferences, with the same semantics as the Pi extension's configuration.
 //
-// `mode` and `minContextTokens` are the plugin's manifest `userConfig` rows: the host
+// `mode`, `minContextTokens`, and `logRequests` are the plugin's manifest `userConfig` rows: the host
 // validates them, stores them in the user's settings.json, and shows them in /config.
 // `autoAcknowledged` lives in the plugin's own store so that only this mod's confirmation
 // dialog can grant experimental automatic mode. A legacy `sharingConsent` field is ignored.
@@ -10,6 +10,7 @@ export const MODES: readonly Mode[] = ["hint", "auto", "off"];
 export const PLUGIN = "compact-adviser";
 export const MODE_KEY = `${PLUGIN}.mode`;
 export const MINIMUM_KEY = `${PLUGIN}.minContextTokens`;
+export const LOG_KEY = `${PLUGIN}.logRequests`;
 export const CONSENT_STORE_KEY = "preferences";
 export const DEFAULT_MINIMUM = 40000;
 
@@ -17,6 +18,7 @@ export interface Config {
   mode: Mode;
   minContextTokens: number;
   autoAcknowledged: boolean;
+  logRequests: boolean;
 }
 
 export interface Consent {
@@ -86,6 +88,7 @@ export function readConfig(
     rows.find((candidate) => candidate.key === key)?.value ?? loaded[field];
   const mode = row(MODE_KEY, "mode");
   const minimum = row(MINIMUM_KEY, "minContextTokens");
+  const logRequests = row(LOG_KEY, "logRequests");
   if (typeof mode !== "string" || !MODES.includes(mode as Mode)) {
     throw new SettingsError("Cannot read the compact-adviser mode setting; no action is taken.");
   }
@@ -94,11 +97,17 @@ export function readConfig(
       "Cannot read the compact-adviser minimum context setting; no action is taken.",
     );
   }
+  if (logRequests !== undefined && typeof logRequests !== "boolean") {
+    throw new SettingsError(
+      "Cannot read the compact-adviser request-log setting; no action is taken.",
+    );
+  }
   const consent = parseConsent(consentValue);
   return {
     mode: mode as Mode,
     minContextTokens: minimum,
     autoAcknowledged: consent.autoAcknowledged,
+    logRequests: logRequests === true,
   };
 }
 

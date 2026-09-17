@@ -12,7 +12,7 @@ import {
   qualifies,
   requestBody,
 } from "../lib/judge.ts";
-import { SUMMARY_PREFIX, snapshot } from "../lib/snapshot.ts";
+import { RECENT_TAIL_MESSAGES, SUMMARY_PREFIX, snapshot } from "../lib/snapshot.ts";
 import {
   backoff,
   completeExchange,
@@ -57,6 +57,7 @@ describe("settings", () => {
       mode: "hint",
       minContextTokens: 40000,
       autoAcknowledged: false,
+      logRequests: false,
     });
     expect(
       readConfig(rows("auto", 60000), {
@@ -68,6 +69,7 @@ describe("settings", () => {
       mode: "auto",
       minContextTokens: 60000,
       autoAcknowledged: true,
+      logRequests: false,
     });
   });
 
@@ -212,6 +214,67 @@ describe("judge input", () => {
     expect(view.state.userConstraints).toHaveLength(1);
     expect(view.state.coverage.redacted).toBe(true);
     expect(view.autoCoverage).toBe(false);
+  });
+
+  test("recent tail keeps the last 64 assistant messages when they fit the byte budget", () => {
+    const older = Array.from({ length: 20 }, (_, i) => ({
+      role: "assistant" as const,
+      text: `old-${i}`,
+      toolUses: [],
+    }));
+    const recent = Array.from({ length: RECENT_TAIL_MESSAGES }, (_, i) => ({
+      role: "assistant" as const,
+      text: `keep-${i}`,
+      toolUses: [],
+    }));
+    const view = snapshot([...older, ...recent]);
+    expect(view.state.coverage.olderMessagesOmitted).toBe(older.length);
+    expect(view.state.recent.map((m) => m.text)).toEqual(recent.map((m) => m.text));
+    expect(view.state.recent.length).toBeGreaterThan(6);
+    expect(view.state.coverage.recentTextTruncated).toBe(false);
+    expect(view.autoCoverage).toBe(true);
+  });
+
+  test("tool results in the 64-message window keep a head and tail and leave sibling budget", () => {
+    const huge = `TOOLHEAD${"m".repeat(4000)}TOOLMID${"n".repeat(4000)}TOOLTAIL`;
+    const view = snapshot([
+      { role: "assistant", text: "SIBLING-OLD", toolUses: [] },
+      {
+        role: "assistant",
+        text: "called bash",
+        toolUses: [{ tool_use_id: "t1", tool: "Bash", input: { command: "cat log" }, text: huge }],
+      },
+      { role: "assistant", text: "SIBLING-NEW", toolUses: [] },
+    ]);
+    expect(view.state.recent.map((m) => m.text)).toEqual([
+      "SIBLING-OLD",
+      "called bash",
+      "SIBLING-NEW",
+    ]);
+    const excerpt = view.state.recent[1]?.tools?.[0]?.excerpt ?? "";
+    expect(excerpt.includes("TOOLHEAD")).toBe(true);
+    expect(excerpt.includes("TOOLTAIL")).toBe(true);
+    expect(/\[truncated \d+ bytes\]/.test(excerpt)).toBe(true);
+    expect(excerpt.includes("TOOLMID")).toBe(false);
+    expect(new TextEncoder().encode(excerpt).byteLength).toBeLessThanOrEqual(512);
+    expect(new TextEncoder().encode(requestBody(view.state)).byteLength).toBeLessThanOrEqual(
+      MAX_REQUEST_BYTES,
+    );
+  });
+
+  test("a 64-message window still clips to the tail budget and the request cap", () => {
+    const view = snapshot(
+      Array.from({ length: RECENT_TAIL_MESSAGES }, (_, i) => ({
+        role: "assistant" as const,
+        text: `clip-${i}-${"x".repeat(2000)}`,
+        toolUses: [],
+      })),
+    );
+    expect(view.state.coverage.olderMessagesOmitted).toBe(0);
+    expect(view.state.coverage.recentTextTruncated).toBe(true);
+    expect(new TextEncoder().encode(requestBody(view.state)).byteLength).toBeLessThanOrEqual(
+      MAX_REQUEST_BYTES,
+    );
   });
 
   test("a long transcript stays within the request cap and discloses truncation", () => {

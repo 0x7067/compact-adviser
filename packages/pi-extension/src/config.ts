@@ -19,12 +19,14 @@ export interface Config {
   mode: Mode;
   minContextTokens: number;
   autoAcknowledged: boolean;
+  logRequests: boolean;
 }
 export const DEFAULT_CONFIG: Readonly<Config> = Object.freeze({
   version: 1,
   mode: "hint",
   minContextTokens: 40000,
   autoAcknowledged: false,
+  logRequests: false,
 });
 export function parseMinimum(text: string): number {
   const value = text.trim();
@@ -44,7 +46,8 @@ function validate(value: unknown): Config {
     typeof c.minContextTokens !== "number" ||
     !Number.isSafeInteger(c.minContextTokens) ||
     c.minContextTokens <= 0 ||
-    typeof c.autoAcknowledged !== "boolean"
+    typeof c.autoAcknowledged !== "boolean" ||
+    (c.logRequests !== undefined && typeof c.logRequests !== "boolean")
   ) {
     throw new Error("Invalid or unsupported settings. Restore a valid version-1 configuration.");
   }
@@ -53,6 +56,7 @@ function validate(value: unknown): Config {
     mode: c.mode as Mode,
     minContextTokens: c.minContextTokens,
     autoAcknowledged: c.autoAcknowledged,
+    logRequests: c.logRequests === true,
   };
 }
 export class ConfigStore {

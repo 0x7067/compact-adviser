@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import test from "node:test";
 import { snapshot } from "../src/context.ts";
+import { requestLogPath } from "../src/log.ts";
 import { restoreState } from "../src/state.ts";
 import { flush, harness, success } from "./helpers.ts";
 
@@ -309,4 +310,24 @@ test("draft input and an absent active model suppress judgment", async (t) => {
   h.next();
   await h.fire("agent_settled");
   assert.equal(h.calls, 0);
+});
+
+test("TypeSafe request logging is off by default and writes a redacted body without the key", async (t) => {
+  const off = harness(t);
+  off.enable();
+  await off.fire("agent_settled");
+  assert.equal(off.calls, 1);
+  assert.equal(existsSync(requestLogPath(off.dir)), false);
+  const on = harness(t);
+  on.enable();
+  on.selects.push("Log TypeSafe requests: off", "On", "Close");
+  await on.command("");
+  assert.equal(on.store.read().logRequests, true);
+  assert.ok(on.notifications.at(-1)?.includes(requestLogPath(on.dir)));
+  await on.fire("agent_settled");
+  assert.equal(on.calls, 1);
+  const logged = readFileSync(requestLogPath(on.dir), "utf8");
+  assert.ok(logged.includes("jev-latest"));
+  assert.ok(logged.includes("Finish and save the report"));
+  assert.ok(!logged.includes("test-key"));
 });

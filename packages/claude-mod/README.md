@@ -59,6 +59,7 @@ The key is never written to settings, the plugin store, logs, or messages.
 
 ```text
 Mode: Hints only (default)
+Log TypeSafe requests: Off (default)
 Minimum context tokens: 40000
   A token count, not a percentage; no judgment below it.
 [ Reset minimum to 40,000 ]
@@ -76,13 +77,13 @@ Selecting Automatic does not compact immediately.
 Edit it and press Enter to validate and save.
 Blank, zero, negative, fractional, exponential, suffixed (`40k`), nonnumeric, and unsafe-integer inputs are rejected with a message beneath the field, and the typed text stays for correction.
 A value at or above the current model's window is saved with a warning; it is never clamped.
-Reset changes only the minimum, not the mode or session cooldowns.
+Reset changes only the minimum, not the mode, request logging, or session cooldowns.
 
-`mode` and `minContextTokens` are this plugin's declared `userConfig` options.
-Claude Code validates them and stores them in your user `settings.json` under `pluginConfigs["compact-adviser@…"].options`, and its own `/config` menu shows the same two rows.
+`mode`, `minContextTokens`, and `logRequests` are this plugin's declared `userConfig` options.
+Claude Code validates them and stores them in your user `settings.json` under `pluginConfigs["compact-adviser@…"].options`, and its own `/config` menu shows the same rows.
 The automatic-mode acknowledgement lives in the plugin's own store, so only this mod's confirmation dialog can grant experimental auto.
 A legacy `sharingConsent` field in that store is ignored.
-Mode, minimum, and the acknowledgement survive restarts, `--resume`, compaction, and project changes.
+Mode, minimum, request logging, and the acknowledgement survive restarts, `--resume`, compaction, and project changes.
 A value a managed setting owns, or any refused save, is reported as not saved.
 
 Claude Code reloads a mod whenever one of its options is saved, and prints a dim "options changed, reloaded" line for it in the transcript; that line is Claude Code's own notice, not a model message.
@@ -155,10 +156,12 @@ Use hint mode if another plugin customizes compaction in ways this mod cannot ob
 
 ## Privacy and costs
 
-The request includes bounded user requests, recent visible replies, short tool-result excerpts, a prior compaction summary when present, names of files written by edit tools, and explicit omission markers.
+The request includes bounded user requests, up to the last 64 recent visible replies and tool results clipped by existing byte budgets, short tool-result excerpts (long dumps keep a head and tail), a prior compaction summary when present, names of files written by edit tools, and explicit omission markers.
 System prompts, hidden reasoning, images, environment variables, and complete transcripts are not sent.
 Known key patterns and obvious sensitive-file results (`.env`, `*.pem`, `id_rsa`, ...) are filtered, but this is **best-effort**, not comprehensive secret detection.
 Installing this package is consent to send eligible checkpoint context to TypeSafe; uninstall it or set mode Off if that is not acceptable.
+
+Optional request logging is off by default. Enable **Log TypeSafe requests** from `/compact-adviser` (or `/config`) to append each judgment body to `~/.claude/compact-adviser-requests.jsonl`. The log is the redacted request body plus questions; it never includes the API key.
 
 Requests are capped at 32,000 serialized UTF-8 bytes, about an 8k-token budget; oversized requests are refused locally.
 Published Jev pricing during development was $0.042 per million input tokens with free output, so an 8k-token request is about $0.0003.
@@ -168,7 +171,7 @@ Pricing and limits can change.
 
 | Pi extension | Claude Code mod | Why |
 | --- | --- | --- |
-| `compact-adviser.json` in Pi's agent directory holds mode, minimum, and the auto acknowledgement | `mode` and `minContextTokens` are host-stored `userConfig` options (also in `/config`); the auto acknowledgement is in the plugin store | Claude Code gives plugins a declared, validated configuration surface; a `/config` toggle must not bypass the auto confirmation |
+| `compact-adviser.json` in Pi's agent directory holds mode, minimum, request logging, and the auto acknowledgement | `mode`, `minContextTokens`, and `logRequests` are host-stored `userConfig` options (also in `/config`); the auto acknowledgement is in the plugin store | Claude Code gives plugins a declared, validated configuration surface; a `/config` toggle must not bypass the auto confirmation |
 | Menu from Pi's select and input dialogs | One settings pane with a picker, a prefilled field, and buttons; confirmations in Claude Code's own question dialog | Same rows and flow on Claude Code's elements |
 | Judges at `agent_settled` | Judges at `turn.complete` for the main loop | Claude Code's turn end is already the settled point |
 | Hint as notice plus widget | Brief notice, a Tab-to-take `/compact` suggestion, and a hint pinned until the next turn | Claude Code's hint surfaces; the pinned line is only for actual advice |

@@ -2,6 +2,7 @@
 // gates, hint and automatic outcomes, cooldowns across compactions, the commands, and
 // the settings pane. The world beneath the plugin is mocked in ./support.ts.
 import { describe, type Engine, expect, test } from "claude-code/testing";
+import { RECENT_TAIL_MESSAGES } from "../lib/snapshot.ts";
 import {
   answered,
   commandRun,
@@ -78,6 +79,19 @@ describe("turn-end gates", () => {
     expect(w.journal.toasts).toContain(HINT);
     expect(w.journal.suggestions).toEqual(["/compact"]);
     expect(w.journal.compactions).toHaveLength(0);
+    expect(w.journal.fsWrites).toHaveLength(0);
+  });
+
+  test("optional request logging writes the TypeSafe body and never the key", async ($, on) => {
+    const w = world(on, { logRequests: true });
+    await $.session.start(interactiveStart);
+    await turnEnd($, w);
+    expect(w.journal.requests).toHaveLength(1);
+    expect(w.journal.fsWrites).toHaveLength(1);
+    const logged = w.journal.fsWrites[0]?.text ?? "";
+    expect(logged.includes("jev-latest")).toBe(true);
+    expect(logged.includes(KEY)).toBe(false);
+    expect(w.journal.fsWrites[0]?.path.endsWith("compact-adviser-requests.jsonl")).toBe(true);
   });
 
   test("the next turn clears the hint without restoring a status strip", async ($, on) => {
@@ -357,6 +371,11 @@ describe("automatic mode", () => {
         text: i % 2 ? `Step ${i} done. ${"detail ".repeat(1600)}` : `Next step ${i}.`,
         toolUses: [],
       })),
+      ...Array.from({ length: RECENT_TAIL_MESSAGES }, (_, i) => ({
+        role: i % 2 ? ("assistant" as const) : ("user" as const),
+        text: i % 2 ? `Recent step ${i} done.` : `Continue ${i}.`,
+        toolUses: [],
+      })),
       { role: "user", text: "Run the tests.", toolUses: [] },
       { role: "assistant", text: "All 12 tests pass.", toolUses: [] },
       { role: "user", text: "Commit it.", toolUses: [] },
@@ -555,7 +574,7 @@ describe("commands", () => {
     await $.command.run(commandRun("status"));
     const line = w.journal.logs.at(-1) ?? "";
     expect(line).toBe(
-      "compact-adviser: Mode: hint. Minimum: 40,000 tokens. Context: 60,000. Key: present. No cooldown; semantic checks still apply. Claude Code auto-compacts at 167,000 tokens. Settings: /config (compact-adviser rows) and /compact-adviser.",
+      "compact-adviser: Mode: hint. Minimum: 40,000 tokens. Context: 60,000. Key: present. No cooldown; semantic checks still apply. Claude Code auto-compacts at 167,000 tokens. Request log: off. Settings: /config (compact-adviser rows) and /compact-adviser.",
     );
     expect(line.includes(KEY)).toBe(false);
   });
@@ -596,7 +615,7 @@ describe("settings pane", () => {
     expect(w.journal.opened).toEqual([{ id: PLUGIN, focus: true }]);
     const tree = await $.ui.render(pane);
     const drawn = elements(tree);
-    const select = drawn.find((e) => e.type === "Select");
+    const select = drawn.find((e) => e.type === "Select" && e.props.label === "Mode");
     expect(select?.props.value).toBe("hint");
     expect(JSON.stringify(select?.props.options)).toBe(
       JSON.stringify([
@@ -605,6 +624,10 @@ describe("settings pane", () => {
         { value: "off", label: "Off" },
       ]),
     );
+    const logging = drawn.find(
+      (e) => e.type === "Select" && e.props.label === "Log TypeSafe requests",
+    );
+    expect(logging?.props.value).toBe("off");
     const input = drawn.find((e) => e.type === "Input");
     expect(input?.props.value).toBe("40000");
     expect(input?.props.label).toBe("Minimum context tokens");
