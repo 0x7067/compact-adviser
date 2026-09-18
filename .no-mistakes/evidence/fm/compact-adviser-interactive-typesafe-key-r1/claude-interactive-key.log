@@ -1,0 +1,6 @@
+ok - Claude Code 2.1.276 (Claude Code): without CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1 there is no command
+ok - the settings pane opens without a sharing toggle or idle status strip
+ok - the pane accepts and persists a TypeSafe API key without showing the saved value
+ok - a settled exchange uses the menu-saved key and shows the hint
+
+4 focused live checks passed on Claude Code 2.1.276 (Claude Code).
