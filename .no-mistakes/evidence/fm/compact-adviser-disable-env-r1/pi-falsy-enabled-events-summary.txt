@@ -1,0 +1,5 @@
+session mode: tui
+settled turns: 1
+TypeSafe/Jev requests: 1
+compactions: 0
+observation: COMPACT_ADVISER_DISABLE=off left /compact-adviser registered and produced a hint after one Jev judgment.

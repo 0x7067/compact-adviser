@@ -1,0 +1,6 @@
+product: real signed Pi native
+session mode: tui
+settled turns: 2
+TypeSafe/Jev requests: 0
+compactions: 0
+observation: /compact-adviser status was handled as ordinary model input, proving the command was not registered.

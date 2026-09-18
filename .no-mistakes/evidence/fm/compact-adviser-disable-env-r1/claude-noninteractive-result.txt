@@ -1,0 +1,6 @@
+exit: 0
+stdout: LIVE_FIXTURE_COMPLETE
+stderr: 
+Anthropic fixture requests: 2
+TypeSafe/Jev requests: 0
+result: PASS - real Claude Code print session stayed adviser-inert
