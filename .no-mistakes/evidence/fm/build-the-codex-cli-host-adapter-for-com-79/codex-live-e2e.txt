@@ -1,0 +1,12 @@
+
+> compact-adviser-codex-plugin@0.1.0 test:e2e
+> node scripts/live-e2e.mjs
+
+ok - Codex codex-cli 0.153.4: the package installs from a marketplace as an enabled plugin
+ok - the settings CLI saves a setting and refuses automatic mode, which Codex cannot do
+ok - codex exec settles the same shape without judging: scripted runs never advise
+ok - a settled 70,000-token exchange is judged once, paints the ↳ Hook hint, and logs its complete Jev decision without the key
+ok - a materially different next checkpoint is judged immediately and shows another hint
+ok - with the adviser off a settled checkpoint is neither judged nor hinted
+
+6 live checks passed on Codex codex-cli 0.153.4.
