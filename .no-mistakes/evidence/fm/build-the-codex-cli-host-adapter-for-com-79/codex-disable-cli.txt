@@ -1,0 +1,5 @@
+command: COMPACT_ADVISER_DISABLE=1 compact-adviser status
+exit: 0
+stdout bytes: 0
+settings/session files created: 0
+observable result: no command output and no adviser state mutation
