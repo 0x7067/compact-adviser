@@ -37,7 +37,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Load pinned host versions
-        run: cat .github/host-versions.env >> "$GITHUB_ENV"
+        run: grep -E '^[A-Za-z_][A-Za-z0-9_]*=' .github/host-versions.env >> "$GITHUB_ENV"
 
       - uses: actions/setup-node@v6
         with:
@@ -62,7 +62,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Load pinned host versions
-        run: cat .github/host-versions.env >> "$GITHUB_ENV"
+        run: grep -E '^[A-Za-z_][A-Za-z0-9_]*=' .github/host-versions.env >> "$GITHUB_ENV"
 
       - uses: actions/setup-node@v6
         with:
@@ -87,7 +87,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Load pinned host versions
-        run: cat .github/host-versions.env >> "$GITHUB_ENV"
+        run: grep -E '^[A-Za-z_][A-Za-z0-9_]*=' .github/host-versions.env >> "$GITHUB_ENV"
 
       - uses: actions/setup-node@v6
         with:
@@ -121,7 +121,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Load pinned host versions
-        run: cat .github/host-versions.env >> "$GITHUB_ENV"
+        run: grep -E '^[A-Za-z_][A-Za-z0-9_]*=' .github/host-versions.env >> "$GITHUB_ENV"
 
       - uses: actions/setup-node@v6
         with:

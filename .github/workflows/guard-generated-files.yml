@@ -39,6 +39,10 @@ jobs:
 
           violated=""
           for path in CHANGELOG.md .release-please-manifest.json; do
+            # First introduction is the release-please bootstrap, not a hand-edit.
+            if ! git cat-file -e "${BASE_SHA}:${path}" 2>/dev/null; then
+              continue
+            fi
             if printf '%s\n' "$files" | grep -qxF -- "$path"; then
               violated="${violated} ${path}"
             fi
