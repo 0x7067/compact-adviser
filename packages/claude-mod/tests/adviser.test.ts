@@ -9,6 +9,7 @@ import {
   score,
 } from "../lib/judge.ts";
 import { RECENT_TAIL_MESSAGES } from "../lib/snapshot.ts";
+import { SESSION_RETENTION_MS } from "../lib/state.ts";
 import {
   answered,
   autoFocused,
@@ -85,6 +86,37 @@ describe("activation", () => {
     expect(w.journal.commands).toEqual([PLUGIN]);
     expect(w.journal.statuses.filter((s) => s)).toHaveLength(0);
   });
+});
+
+describe("the COMPACT_ADVISER_DISABLE kill switch", () => {
+  for (const value of ["1", "true", "TRUE", "yes", "on", " on "]) {
+    test(`takes no product action when it is ${JSON.stringify(value)}`, async ($, on) => {
+      // Automatic mode plus consent is the most enabled configuration there is; the
+      // override still has to win over it.
+      const w = world(on, {
+        disable: value,
+        mode: "auto",
+        consent: { autoAcknowledged: true },
+      });
+      await $.session.start(interactiveStart);
+      await turnEnd($, w);
+      await $.session.compact({ trigger: "manual", messages: MESSAGES });
+      expect(w.journal.commands).toHaveLength(0);
+      expect(w.journal.statuses).toHaveLength(0);
+      expect(w.journal.toasts).toHaveLength(0);
+      expect(w.journal.requests).toHaveLength(0);
+      expect(w.journal.compactions).toHaveLength(0);
+      expect(w.journal.messageReads).toBe(0);
+    });
+  }
+
+  for (const value of ["0", "false", "no", "off", "", " "]) {
+    test(`stays enabled when it is ${JSON.stringify(value)}`, async ($, on) => {
+      const w = world(on, { disable: value });
+      await $.session.start(interactiveStart);
+      expect(w.journal.commands).toEqual([PLUGIN]);
+    });
+  }
 });
 
 describe("turn-end gates", () => {
@@ -342,12 +374,36 @@ describe("turn-end gates", () => {
     expect(stored(w)).toBeUndefined();
   });
 
-  test("non-interactive sessions never judge", async ($, on) => {
-    const w = world(on);
+  test("non-interactive sessions stay inert", async ($, on) => {
+    const stale = {
+      version: 1,
+      compacted: false,
+      baseline: null,
+      completed: 0,
+      lastHintAt: null,
+      lastHintKey: null,
+      snoozeUntil: 0,
+      retryAfter: 0,
+      failures: 0,
+      updatedAt: START - SESSION_RETENTION_MS - 1,
+    };
+    const w = world(on, {
+      store: {
+        "session:old": stale,
+        pendingNotice: { message: "Off saved (all sessions).", at: START },
+      },
+    });
     await $.session.start({ cwd: "/work", surface: null, isInteractive: false });
     await turnEnd($, w);
+    await $.session.compact({ trigger: "manual", messages: MESSAGES });
+    expect(w.journal.commands).toHaveLength(0);
     expect(w.journal.requests).toHaveLength(0);
     expect(w.journal.statuses).toHaveLength(0);
+    expect(w.journal.toasts).toHaveLength(0);
+    expect(w.journal.usageReads).toBe(0);
+    expect(w.store.has("session:old")).toBe(true);
+    expect(w.store.has("pendingNotice")).toBe(true);
+    expect(stored(w)).toBeUndefined();
   });
 
   test("a large static prompt alone is not useful history", async ($, on) => {

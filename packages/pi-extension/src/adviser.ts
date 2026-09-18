@@ -13,6 +13,7 @@ import {
   parseSavedApiKey,
 } from "./config.ts";
 import { snapshot } from "./context.ts";
+import { DISABLE_ENV, disabledByEnv } from "./disable.ts";
 import { formatKeyStatus, type ResolvedTypesafeApiKey, resolveTypesafeApiKey } from "./env.ts";
 import {
   floorFor,
@@ -53,6 +54,9 @@ function savedApiKey(store: ConfigStore): string | undefined {
   }
 }
 export function installAdviser(pi: ExtensionAPI, options: Options): void {
+  // `COMPACT_ADVISER_DISABLE` is read once per install: a session's environment is fixed,
+  // and re-reading it per event would only invite a mid-session half-disabled state.
+  if (disabledByEnv(process.env[DISABLE_ENV])) return;
   const store = new ConfigStore(options.agentDir);
   const resolvedKey = (): ResolvedTypesafeApiKey => {
     if (options.key) {
@@ -75,15 +79,15 @@ export function installAdviser(pi: ExtensionAPI, options: Options): void {
   let automaticCompaction = false;
   let hintVisible = false;
   let diagnostic = "";
-  const uiAvailable = (ctx: ExtensionContext) => ctx.mode === "tui" && ctx.hasUI;
+  const active = (ctx: ExtensionContext) => ctx.mode === "tui" && ctx.hasUI;
   function persist(state: SessionState) {
     pi.appendEntry(STATE_TYPE, state);
   }
   function clearStatus(ctx: ExtensionContext) {
-    if (uiAvailable(ctx)) ctx.ui.setStatus(LABEL, undefined);
+    if (active(ctx)) ctx.ui.setStatus(LABEL, undefined);
   }
   function notice(ctx: ExtensionContext, message: string) {
-    if (!uiAvailable(ctx) || diagnostic === message) return;
+    if (!active(ctx) || diagnostic === message) return;
     diagnostic = message;
     ctx.ui.notify(message, "warning");
   }
@@ -98,7 +102,7 @@ export function installAdviser(pi: ExtensionAPI, options: Options): void {
     generation++;
     request?.abort();
     request = undefined;
-    if (hintVisible && uiAvailable(ctx)) ctx.ui.setWidget(LABEL, undefined);
+    if (hintVisible && active(ctx)) ctx.ui.setWidget(LABEL, undefined);
     hintVisible = false;
   }
   function eligible(ctx: ExtensionContext, c: Config, s: SessionState): number | undefined {
@@ -106,7 +110,7 @@ export function installAdviser(pi: ExtensionAPI, options: Options): void {
     if (
       !supported ||
       !ctx.model ||
-      !uiAvailable(ctx) ||
+      !active(ctx) ||
       compacting ||
       !ctx.isIdle() ||
       ctx.hasPendingMessages() ||
@@ -146,7 +150,7 @@ export function installAdviser(pi: ExtensionAPI, options: Options): void {
     ]);
   }
   async function settled(ctx: ExtensionContext) {
-    if (!uiAvailable(ctx)) return;
+    if (!active(ctx)) return;
     let state = restoreState(ctx.sessionManager.getBranch());
     const last = lastResponse(ctx.sessionManager.getBranch());
     if (last?.message.stopReason !== "stop" || state.lastSettled === last.id) return;
@@ -307,7 +311,7 @@ export function installAdviser(pi: ExtensionAPI, options: Options): void {
     }
   });
   pi.on("session_compact", (event, ctx) => {
-    if (!uiAvailable(ctx)) return;
+    if (!active(ctx)) return;
     invalidate(ctx);
     compacting = false;
     automaticCompaction = false;
@@ -335,7 +339,7 @@ export function installAdviser(pi: ExtensionAPI, options: Options): void {
   pi.on("model_select", (_event, ctx) => {
     invalidate(ctx);
     const s = restoreState(ctx.sessionManager.getBranch());
-    if (uiAvailable(ctx) && s.compactionId) persist({ ...s, baseline: null });
+    if (active(ctx) && s.compactionId) persist({ ...s, baseline: null });
     refresh(ctx);
   });
   pi.on("session_shutdown", (_event, ctx) => {
@@ -495,7 +499,7 @@ export function installAdviser(pi: ExtensionAPI, options: Options): void {
         .filter((v) => v.startsWith(prefix))
         .map((value) => ({ value, label: value })),
     handler: async (args, ctx) => {
-      if (!uiAvailable(ctx)) return;
+      if (!active(ctx)) return;
       try {
         const [command, ...rest] = args.trim().split(/\s+/);
         const value = rest.join(" ");

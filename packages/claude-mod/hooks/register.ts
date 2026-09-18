@@ -34,6 +34,7 @@ import {
   readConfig,
   readSavedApiKey,
 } from "../lib/config.ts";
+import { disabledByEnv } from "../lib/disable.ts";
 import {
   formatKeyStatus,
   parseDotenvKey,
@@ -102,12 +103,22 @@ let minimumDraft: { text: string; error?: string } | undefined;
 let keyDraft: { text: string; error?: string } | undefined;
 let statusDetails: string | undefined;
 
+/**
+ * Both environment gates, resolved once per module environment and cached: function
+ * hooks must be on, and `COMPACT_ADVISER_DISABLE` must not be set to a truthy value.
+ * Every hook goes through here, so a disabled session registers no command, shows no
+ * status, and never reaches TypeSafe.
+ */
 function isActivated($: EngineInterface): Promise<boolean> {
   if (activation === undefined) {
-    activation = $.env.get("CLAUDE_CODE_ENABLE_FUNCTION_HOOKS").then(
-      (value) => value === "1",
-      () => false,
-    );
+    activation = Promise.all([
+      $.env.get("CLAUDE_CODE_ENABLE_FUNCTION_HOOKS").then(
+        (value) => value === "1",
+        () => false,
+      ),
+      // `$.env.get` takes a literal name, so `DISABLE_ENV` cannot be spelled here.
+      $.env.get("COMPACT_ADVISER_DISABLE").then(disabledByEnv, () => false),
+    ]).then(([hooks, disabled]) => hooks && !disabled);
   }
   return activation;
 }
@@ -657,6 +668,7 @@ export const register: Register = (on, options) => {
   on("session.start", async ($, e, next) => {
     if (!(await isActivated($))) return next(e);
     interactive = e.isInteractive;
+    if (!interactive) return next(e);
     generation++;
     judging = false;
     compacting = false;
@@ -704,7 +716,7 @@ export const register: Register = (on, options) => {
   // session's cooldown; a precompute installs nothing and a subagent's is its own.
   on("session.compact", async ($, e, next) => {
     const result = await next(e);
-    if (!(await isActivated($))) return result;
+    if (!(await isActivated($)) || !interactive) return result;
     if (e.trigger === "precompute" || e.agentId !== undefined || result.skip !== undefined) {
       return result;
     }
