@@ -1,0 +1,140 @@
+
+--- LOW USAGE PRODUCT TUI ---
+                       
+
+ Earlier step 47                                                                                                        
+
+ Earlier step 48                                                                                                        
+
+ Earlier step 49                                                                                                        
+
+ Earlier step 50                                                                                                        
+
+ Earlier step 51                                                                                                        
+
+ Earlier step 52                                                                                                        
+
+ Earlier step 53                                                                                                        
+
+ Earlier step 54                                                                                                        
+
+ Earlier step 55                                                                                                        
+
+ Earlier step 56                                                                                                        
+
+ Earlier step 57                                                                                                        
+
+ Earlier step 58                                                                                                        
+
+ Earlier step 59                                                                                                        
+
+ Earlier step 60                                                                                                        
+
+ Earlier step 61                                                                                                        
+
+ Earlier step 62                                                                                                        
+
+ Earlier step 63                                                                                                        
+
+───────────────��────────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                                        
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+~/.no-mistakes/worktrees/8383627c78c8/01M2SW5JD177X1CZ8Z23MVXK0E/packages/pi-extension/.test-tmp/case-Q4WPrf (detached)
+↑2.6M ↓650 14.7%/272k (auto)                                                                                       local                                                                                                                        
+ Finish the low-usage fixture report.                                                                                   
+                                                                                                                        
+
+ The report is saved. This phase is complete; next work can read the artifact.                                          
+
+─────────────────────────────────────────────────────────────────────────────────────────────────────��──────────────────
+                                                                                                                        
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+~/.no-mistakes/worktrees/8383627c78c8/01M2SW5JD177X1CZ8Z23MVXK0E/packages/pi-extension/.test-tmp/case-Q4WPrf (detached)
+↑2.6M ↓670 16.6%/272k (auto)                                                                                       local Mode: hint. Minimum: 40,000 tokens. Context: 45020 (17% of the window; hint floor 0.87). Key: env. No cooldown;        
+ semantic checks still apply. Request log: off. Settings:                                                               
+ /Users/kunchen/.no-mistakes/worktrees/8383627c78c8/01M2SW5JD177X1CZ8Z23MVXK0E/packages/pi-extension/.test-tmp/case-Q4W 
+ Prf/compact-adviser.json                                                                                               
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                                        
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+~/.no-mistakes/worktrees/8383627c78c8/01M2SW5JD177X1CZ8Z23MVXK0E/packages/pi-extension/.test-tmp/case-Q4WPrf (detached)
+↑2.6M ↓670 16.6%/272k (auto)                                                                                       local
+
+--- 90% USAGE PRODUCT TUI ---
+ 
+
+ Earlier step 41                                                                                                        
+
+ Earlier step 42                                                                                                        
+
+ Earlier step 43                                                                                                        
+
+ Earlier step 44                                                                                                        
+
+ Earlier step 45                                                                                                        
+
+ Earlier step 46                                                                                                        
+
+ Earlier step 47                                                                                                        
+
+ Earlier step 48                                                                                                        
+
+ Earlier step 49                                                                                                        
+
+ Earlier step 50                                                                                                        
+
+ Earlier step 51                                                                                                        
+
+ Earlier step 52                                                                                                        
+
+ Earlier step 53                                                                                                        
+
+ Earlier step 54                                                                                                        
+
+ Earlier step 55                                                                                                        
+
+ Earlier step 56                                                                                                        
+
+ Earlier step 57                                                                                                        
+
+ Earlier step 58                                                                                                        
+
+ Earlier step 59                                                                                                        
+
+ Earlier step 60                                                                                                        
+
+ Earlier step 61                                                                                                        
+
+ Earlier step 62                                                                                                        
+
+ Earlier step 63                                                                                                        
+
+───────────────��────────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                                        
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+~/.no-mistakes/worktrees/8383627c78c8/01M2SW5JD177X1CZ8Z23MVXK0E/packages/pi-extension/.test-tmp/case-gheRaA (detached)
+↑2.6M ↓650 14.7%/272k (auto)                                                                                       local                                                                                                                        
+ Finish the nearly-full fixture report.                                                                                 
+                                                                                                                        
+
+ The report is saved. This phase is complete; next work can read the artifact.                                          
+
+ Good checkpoint: completed work appears recorded. Run /compact to save tokens.                                         
+
+ Good checkpoint: completed work appears recorded. Run /compact to save tokens.                                         
+ /compact-adviser snooze · /compact-adviser dismiss                                                                     
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                                        
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────���────
+~/.no-mistakes/worktrees/8383627c78c8/01M2SW5JD177X1CZ8Z23MVXK0E/packages/pi-extension/.test-tmp/case-gheRaA (detached)
+↑2.8M ↓670 90.1%/272k (auto)                                                                                       local
+✔ signed Pi: knee floor withholds a coordinating hint until 90% usage (2062.079625ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2911.558708
