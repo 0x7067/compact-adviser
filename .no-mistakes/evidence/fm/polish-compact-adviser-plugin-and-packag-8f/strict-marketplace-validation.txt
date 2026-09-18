@@ -1,0 +1,36 @@
+$ claude plugin validate <base marketplace> --strict --json
+{
+  "success": false,
+  "strict": true,
+  "target": "/Users/kunchen/.no-mistakes/worktrees/8383627c78c8/01M2TTZTA45BB04PC5G4R3KJVV/.test-metadata-e2e/base/.claude-plugin/marketplace.json",
+  "manifest": {
+    "file": "/Users/kunchen/.no-mistakes/worktrees/8383627c78c8/01M2TTZTA45BB04PC5G4R3KJVV/.test-metadata-e2e/base/.claude-plugin/marketplace.json",
+    "type": "marketplace",
+    "errors": [],
+    "warnings": [
+      {
+        "path": "description",
+        "message": "No marketplace description provided. Adding a description helps users understand what this marketplace offers",
+        "code": null
+      }
+    ],
+    "notes": []
+  },
+  "contents": []
+}
+exit=1
+
+$ claude plugin validate . --strict --json
+{
+  "success": true,
+  "strict": true,
+  "target": "/Users/kunchen/.no-mistakes/worktrees/8383627c78c8/01M2TTZTA45BB04PC5G4R3KJVV/.claude-plugin/marketplace.json",
+  "manifest": {
+    "file": "/Users/kunchen/.no-mistakes/worktrees/8383627c78c8/01M2TTZTA45BB04PC5G4R3KJVV/.claude-plugin/marketplace.json",
+    "type": "marketplace",
+    "errors": [],
+    "warnings": [],
+    "notes": []
+  },
+  "contents": []
+}

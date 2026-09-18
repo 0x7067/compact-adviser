@@ -1,0 +1,42 @@
+$ npm pkg get name description keywords homepage repository license
+{
+  "name": "compact-adviser",
+  "description": "Tells you when your Pi session has reached a good point to compact: a standalone extension that judges completed checkpoints instead of leaving you to guess.",
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "compact",
+    "context",
+    "context-management",
+    "checkpoint"
+  ],
+  "homepage": "https://github.com/kunchenguid/compact-adviser#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kunchenguid/compact-adviser.git",
+    "directory": "packages/pi-extension"
+  },
+  "license": "MIT"
+}
+
+$ npm pack --dry-run --json (summary)
+{
+  "id": "compact-adviser@0.1.0",
+  "filename": "compact-adviser-0.1.0.tgz",
+  "entryCount": 13,
+  "files": [
+    "LICENSE",
+    "README.md",
+    "package.json",
+    "src/adviser.ts",
+    "src/config.ts",
+    "src/context.ts",
+    "src/env.ts",
+    "src/index.ts",
+    "src/judge.ts",
+    "src/key-input.ts",
+    "src/log.ts",
+    "src/minimum-input.ts",
+    "src/state.ts"
+  ]
+}

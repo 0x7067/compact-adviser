@@ -1,0 +1,29 @@
+$ claude plugin marketplace add <worktree> --scope user (isolated config)
+Adding marketplace…✔ Successfully added marketplace: compact-adviser (declared in user settings)
+
+$ claude plugin marketplace list --json (isolated config)
+[
+  {
+    "name": "compact-adviser",
+    "source": "directory",
+    "path": "/Users/kunchen/.no-mistakes/worktrees/8383627c78c8/01M2TTZTA45BB04PC5G4R3KJVV",
+    "installLocation": "/Users/kunchen/.no-mistakes/worktrees/8383627c78c8/01M2TTZTA45BB04PC5G4R3KJVV"
+  }
+]
+
+$ claude plugin install compact-adviser@compact-adviser (isolated config)
+Installing plugin "compact-adviser@compact-adviser"...✔ Successfully installed plugin: compact-adviser@compact-adviser (scope: user)
+4 userConfig options not yet set — run /plugin configure compact-adviser@compact-adviser in Claude Code, or pass --config KEY=VALUE.
+
+$ claude plugin list --json (isolated config)
+[
+  {
+    "id": "compact-adviser@compact-adviser",
+    "version": "0.1.0",
+    "scope": "user",
+    "enabled": true,
+    "installPath": "/Users/kunchen/.no-mistakes/worktrees/8383627c78c8/01M2TTZTA45BB04PC5G4R3KJVV/.test-metadata-e2e/config/plugins/cache/compact-adviser/compact-adviser/0.1.0",
+    "installedAt": "2026-09-18T18:22:11.014Z",
+    "lastUpdated": "2026-09-18T18:22:11.014Z"
+  }
+]

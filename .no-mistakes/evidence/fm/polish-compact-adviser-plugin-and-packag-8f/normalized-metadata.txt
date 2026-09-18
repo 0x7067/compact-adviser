@@ -1,0 +1,53 @@
+{
+  "marketplace": {
+    "description": "A single-plugin marketplace for compact-adviser, which tells you when your Claude Code session has reached a good point to run /compact.",
+    "plugin": {
+      "name": "compact-adviser",
+      "source": "./packages/claude-mod",
+      "description": "Stop guessing when to run /compact. Watches your session and suggests compaction at a completed checkpoint - after work lands, not mid-task - so you keep context you still need and drop what you do not. Optionally compacts for you. Judgment runs through the TypeSafe Jev API and needs your own key.",
+      "version": "0.1.0",
+      "category": "productivity",
+      "author": {
+        "name": "Kun Chen"
+      },
+      "homepage": "https://github.com/kunchenguid/compact-adviser#readme",
+      "repository": "https://github.com/kunchenguid/compact-adviser",
+      "license": "MIT",
+      "keywords": [
+        "compact",
+        "context",
+        "context-management",
+        "checkpoint",
+        "productivity"
+      ]
+    }
+  },
+  "pluginManifest": {
+    "homepage": "https://github.com/kunchenguid/compact-adviser#readme",
+    "repository": "https://github.com/kunchenguid/compact-adviser",
+    "keywords": [
+      "compact",
+      "context",
+      "context-management",
+      "checkpoint",
+      "productivity"
+    ],
+    "typesafeApiKey": {
+      "type": "string",
+      "title": "TypeSafe API key",
+      "description": "Saved from /compact-adviser. Hidden in /config so the value is never shown. A non-empty TYPESAFE_API_KEY in the launch environment wins. Do not commit this value.",
+      "default": ""
+    }
+  },
+  "npm": {
+    "description": "Tells you when your Pi session has reached a good point to compact: a standalone extension that judges completed checkpoints instead of leaving you to guess.",
+    "keywords": [
+      "pi-package",
+      "pi-extension",
+      "compact",
+      "context",
+      "context-management",
+      "checkpoint"
+    ]
+  }
+}
