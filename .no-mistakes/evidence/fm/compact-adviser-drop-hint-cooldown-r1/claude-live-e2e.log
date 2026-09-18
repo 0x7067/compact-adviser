@@ -1,0 +1,16 @@
+
+> compact-adviser-claude-mod@0.1.0 test:e2e
+> node scripts/live-e2e.mjs
+
+ok - Claude Code 2.1.276 (Claude Code): without CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1 there is no command
+ok - the settings pane opens without a sharing toggle or idle status strip
+ok - request logging is enabled through the real settings pane
+ok - the pane refuses 40k, keeps it for editing, then saves 60000 to the host's plugin options
+ok - Escape closes the settings pane
+ok - a settled 70,000-token exchange is judged once, shows the hint, and logs its complete Jev decision without the key
+ok - a materially different next checkpoint is judged immediately and shows another hint
+ok - automatic mode chosen in the pane asks first, then persists
+ok - automatic mode compacts at the next eligible checkpoint through Claude Code's compaction
+ok - the first post-compaction exchange remains gated and does not judge or compact again
+
+10 live checks passed on Claude Code 2.1.276 (Claude Code).

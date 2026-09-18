@@ -1,0 +1,60 @@
+
+> compact-adviser-claude-mod@0.1.0 test:e2e
+> node scripts/live-e2e.mjs
+
+ok - Claude Code 2.1.276 (Claude Code): without CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1 there is no command
+ok - the settings pane opens without a sharing toggle or idle status strip
+ok - request logging is enabled through the real settings pane
+ok - the pane refuses 40k, keeps it for editing, then saves 60000 to the host's plugin options
+ok - Escape closes the settings pane
+ok - a settled 70,000-token exchange is judged once, shows the hint, and logs its complete Jev decision without the key
+ok - the next turn clears the hint without restoring ambient chrome
+ok - automatic mode chosen in the pane asks first, then persists
+[auto] never saw the third exchange
+--- screen ---
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module.
+
+✻ Cooked for 0s · done 8:53 AM
+
+❯ E2E-PROMPT-2 run the tests
+
+⏺ Done: step 2 is implemented, 12 of 12 tests pass, and it is committed. Nothing is pending.
+
+✻ Churned for 0s · done 8:53 AM
+
+⏺ compact-adviser: options changed — reloaded (7 hooks: session.start, turn.start, turn.complete, session.compact, command.run,
+  config.describe, ui.render)
+
+❯ E2E-PROMPT-3 add docs
+
+⏺ Done: step 3 is implemented, 12 of 12 tests pass, and it is committed. Nothing is pending.
+
+✻ Brewed for 0s · done 8:53 AM
+
+⏺ compact-adviser: automatic compaction completed: 70,040 to 1,113 tokens.
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯ 
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  ⏸ manual mode on · ? for shortcuts · ← for agents
+

@@ -1,0 +1,12 @@
+✔ signed Pi: materially different consecutive checkpoints each produce a hint (1326.184458ms)
+✔ signed Pi: repeating the same checkpoint is skipped (1527.767041ms)
+✔ signed Pi: snooze still suppresses the next three completed exchanges (2086.627209ms)
+✔ signed Pi: minimum tokens and TypeSafe error backoff still suppress judgments (2609.334083ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8052.182209
