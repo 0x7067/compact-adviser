@@ -1,0 +1,15 @@
+✔ every package sends byte-identical request bodies (0.386333ms)
+✔ the question set and the floor schedule match (0.377917ms)
+✔ every package scores and gates the same judgments the same way (0.412917ms)
+✔ every package parses the same wire response into the same judgment (0.2405ms)
+✔ every package scrubs owned settings fields and known key values the same way (0.418917ms)
+✔ every package writes the same TypeSafe log line shape (1.62075ms)
+✔ every package applies the same cooldownReason gates (0.146834ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 898.737583

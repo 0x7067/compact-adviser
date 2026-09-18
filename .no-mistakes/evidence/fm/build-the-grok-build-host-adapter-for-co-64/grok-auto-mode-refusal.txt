@@ -1,0 +1,3 @@
+command: compact-adviser mode auto
+exit: 1
+Automatic compaction is not available on Grok: nothing outside the session can run /compact. This host is hint-only.

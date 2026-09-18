@@ -1,0 +1,15 @@
+✔ install quotes hook and status-line commands so the shell keeps the path (492.783125ms)
+✔ a malformed transcript line is not judged (149.368417ms)
+✔ an oversized TypeSafe response is refused without a hint (244.121208ms)
+✔ setup, doctor, items, and hint are not commands (278.292333ms)
+✔ an unreadable settings file stops the product instead of guessing (216.65575ms)
+✔ a settings path that is not a file does not resume judging (210.928042ms)
+✔ this host refuses automatic mode by name instead of pretending to have it (0.868ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1690.717666
