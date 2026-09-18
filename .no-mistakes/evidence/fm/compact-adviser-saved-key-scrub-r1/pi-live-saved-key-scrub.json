@@ -1,0 +1,13 @@
+{
+  "product": "Pi 0.85.1",
+  "scenario": "A real write creates a path containing the menu-saved key, then a real read opens compact-adviser.json before the adviser judges the settled turn.",
+  "observed": {
+    "bearerHeaderUsedSavedKey": true,
+    "outgoingBodyContainsSavedKey": false,
+    "optionalRequestLogContainsSavedKey": false,
+    "outgoingBodyContainsRedactionMarker": true,
+    "savedArtifactPathScrubbedTo": "notes-[REDACTED].md",
+    "nonSecretModeRetained": true,
+    "renderedHint": true
+  }
+}
