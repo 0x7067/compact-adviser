@@ -6,6 +6,9 @@
   "author": {
     "name": "Kun Chen"
   },
+  "homepage": "https://github.com/kunchenguid/compact-adviser#readme",
+  "repository": "https://github.com/kunchenguid/compact-adviser",
+  "keywords": ["compact", "context", "context-management", "checkpoint", "productivity"],
   "userConfig": {
     "mode": {
       "type": "string",
