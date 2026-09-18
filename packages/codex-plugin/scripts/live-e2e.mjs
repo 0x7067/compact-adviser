@@ -255,9 +255,18 @@ function launch() {
 }
 
 async function ask(prompt) {
+  const requestsBefore = modelRequests;
   type(prompt);
-  await sleep(400);
-  key("Enter");
+  const deadline = Date.now() + 15000;
+  while (Date.now() < deadline) {
+    // Like the trust dialog, the composer can paint typed text before it accepts Enter.
+    key("Enter");
+    await sleep(300);
+    if (modelRequests > requestsBefore) return;
+  }
+  throw new Error(
+    `[${step}] the composer never submitted ${JSON.stringify(prompt)}\n--- screen ---\n${screen()}`,
+  );
 }
 
 function hintLines(shot) {
@@ -352,7 +361,14 @@ try {
     "the composer",
   );
   if (screen().includes("Do you trust")) {
-    key("Enter");
+    const deadline = Date.now() + 15000;
+    while (Date.now() < deadline) {
+      const shot = screen();
+      if (shot.includes("Ask Codex to do anything")) break;
+      // The trust dialog can be painted before the TUI accepts keyboard input.
+      if (shot.includes("Do you trust")) key("Enter");
+      await sleep(300);
+    }
     await waitText("Ask Codex to do anything");
   }
   await ask("E2E-PROMPT-1 build the parser");
