@@ -1,0 +1,21 @@
+npm pack artifact: compact-adviser-0.1.0.tgz
+PASS packed package/README.md equals transformed root README.md
+PASS committed packages/pi-extension/README.md equals transformed root README.md
+PASS committed packages/claude-mod/README.md equals transformed root README.md
+
+SHA-256 public README contract:
+13428a4a112ec07139f0aa091e1b9538f0142957862c640b9b5641f3b9241862  /Users/kunchen/.no-mistakes/evidence/01M2TT70VGKGHH6JQQ9KSPNS09/package-check/expected-package-readme.md
+13428a4a112ec07139f0aa091e1b9538f0142957862c640b9b5641f3b9241862  /Users/kunchen/.no-mistakes/evidence/01M2TT70VGKGHH6JQQ9KSPNS09/package-check/npm-tarball-readme.md
+13428a4a112ec07139f0aa091e1b9538f0142957862c640b9b5641f3b9241862  packages/pi-extension/README.md
+13428a4a112ec07139f0aa091e1b9538f0142957862c640b9b5641f3b9241862  packages/claude-mod/README.md
+
+Tarball README entry:
+-rw-r--r--  0 0      0        6502 Oct 26  1985 package/README.md
+
+Resolved package links sampled from packed README:
+https://github.com/kunchenguid/compact-adviser/blob/main/LICENSE
+https://github.com/kunchenguid/compact-adviser/blob/main/packages/claude-mod/README.md
+https://github.com/kunchenguid/compact-adviser/blob/main/packages/pi-extension/eval/README.md
+https://github.com/kunchenguid/compact-adviser/blob/main/packages/pi-extension/README.md
+https://github.com/kunchenguid/compact-adviser/blob/main/SECURITY.md
+https://raw.githubusercontent.com/kunchenguid/compact-adviser/main/docs/eval-usage-floor-curve.png

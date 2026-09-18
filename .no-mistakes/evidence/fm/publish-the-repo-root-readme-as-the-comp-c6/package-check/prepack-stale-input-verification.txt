@@ -1,0 +1,5 @@
+Deliberately made packages/pi-extension/README.md stale, then ran npm pack.
+PASS prepack regenerated the working package README from the root README.
+PASS packed package/README.md equals the transformed root README and excludes stale input.
+13428a4a112ec07139f0aa091e1b9538f0142957862c640b9b5641f3b9241862  /Users/kunchen/.no-mistakes/evidence/01M2TT70VGKGHH6JQQ9KSPNS09/package-check/stale-input-tarball-readme.md
+13428a4a112ec07139f0aa091e1b9538f0142957862c640b9b5641f3b9241862  /Users/kunchen/.no-mistakes/evidence/01M2TT70VGKGHH6JQQ9KSPNS09/package-check/expected-package-readme.md

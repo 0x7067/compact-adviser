@@ -1,0 +1,9 @@
+Deliberately appended a line to root README.md without syncing package READMEs.
+PASS pi-extension committed README drift guard rejected mismatch (exit 1).
+PASS claude-mod committed README drift guard rejected mismatch (exit 1).
+
+Pi guard diagnostic:
+  AssertionError [ERR_ASSERTION]: packages/pi-extension/README.md has drifted from the root README. Run `npm run sync-readmes` from the repo root and commit the result.
+
+Claude mod guard diagnostic:
+AssertionError [ERR_ASSERTION]: packages/claude-mod/README.md has drifted from the root README. Run `npm run sync-readmes` from the repo root and commit the result.
