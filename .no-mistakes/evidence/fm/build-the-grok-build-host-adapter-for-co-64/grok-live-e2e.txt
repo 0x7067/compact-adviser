@@ -4,7 +4,7 @@
 
   ok   grok lists the installed plugin as enabled
   ok   grok lists the plugin's /compact-adviser slash command
-Registered the compact-adviser hooks at /var/folders/0k/bf8mwt2n5qddzk24r20gfk0c0000gn/T/compact-adviser-grok-e2e-wonHMg/grok-home/hooks/compact-adviser.json.
+Registered the compact-adviser hooks at /var/folders/0k/bf8mwt2n5qddzk24r20gfk0c0000gn/T/compact-adviser-grok-e2e-WH3AUv/grok-home/hooks/compact-adviser.json.
 Grok grok 1.0.34 (3736acbc8658) [stable]: driving one completed turn with the plugin installed.
   ok   session start wrote both launchers at the fixed path
   ok   the Stop gate asked TypeSafe once (asked 1)
@@ -15,4 +15,6 @@ Grok grok 1.0.34 (3736acbc8658) [stable]: driving one completed turn with the pl
   ok   the row keeps the built-in segments it stands in for
   ok   grok loaded one copy of the six registered handlers
   ok   mode off asks TypeSafe nothing
+  ok   the disabled real turn asks TypeSafe nothing
+  ok   the disabled real turn paints no hint
 Grok grok 1.0.34 (3736acbc8658) [stable]: live regression passed.
