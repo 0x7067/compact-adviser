@@ -1,0 +1,8 @@
+
+✻ Baked for 0s · done 12:44 PM
+                                                                     compact-adviser: Minimum context saved: 60,000 tokens (all sessions).
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯ 
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  ⚠ compact-adviser: work appears completed or recorded. Run /compact to save tokens.
+  ⏸ manual mode on · ? for shortcuts · ← for agents
