@@ -1,0 +1,9 @@
+node_modules/
+coverage/
+.env
+.DS_Store
+.test-tmp/
+
+# Root-level eval scratch. The published harness is packages/pi-extension/eval/.
+/eval/
+evallab/
