@@ -1,0 +1,45 @@
+                                                                             │Compact adviser › Minimum context                            ✕
+ ▐▛███▛█   Claude Code v2.1.277                                              │
+▝▜██████▀  Sonnet 4.5 · API Usage Billing                                    │Tokens: 40k  ⏎ save
+  ▝▝ ▝▝    ~/project                                                         │Enter a positive whole number of tokens, for example 40000.
+                                                                             │Back
+▎ Debug mode enabled · logging to /private/var/folders/0k/bf8mwt2n5qddzk24r20│↑↓ move · Enter select · Esc back
+▎ gfk0c0000gn/T/compact-adviser-e2e-SIYdgN/debug-on.log                      │
+                                                                             │
+⏺ compact-adviser: options changed — reloaded (8 hooks:                      │
+  session.start, turn.start, turn.complete, session.compact,                 │
+  command.run, config.describe, ui.close, ui.render)                         │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+  compact-adviser: TypeSafe request logging on (all sessions). /private/va…  │
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯ 
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  ⏸ manual mode on · ? for shortcuts · ← for agents

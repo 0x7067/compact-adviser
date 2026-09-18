@@ -1,0 +1,45 @@
+                                                                             │Compact adviser  saved for all sessions                      ✕
+ ▐▛███▛█   Claude Code v2.1.277                                              │
+▝▜██████▀  Sonnet 4.5 · API Usage Billing                                    │Mode                    Hints only (default)
+  ▝▝ ▝▝    ~/project                                                         │Minimum context         40,000 tokens
+                                                                             │Log TypeSafe requests   Off
+▎ Debug mode enabled · logging to /private/var/folders/0k/bf8mwt2n5qddzk24r20│TypeSafe API key        from .env
+▎ gfk0c0000gn/T/compact-adviser-e2e-SIYdgN/debug-on.log                      │Reset minimum to 40,000
+                                                                             │Status
+                                                                             │Close
+                                                                             │↑↓ move · Enter select · Esc close
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯ 
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  ⏸ manual mode on · ? for shortcuts · ← for agents
