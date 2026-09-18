@@ -1,0 +1,11 @@
+ The report is saved. This phase is complete; next work can read the artifact.
+
+Compact adviser: work appears completed or recorded. Run /compact to save tokens.
+
+──────────────────────────────────────────────────��─────────────────────────────────────────────────────────────────────
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+~/.no-mistakes/worktrees/8383627c78c8/01M2TJY8RQ2WV3Q80NJQPMCEE8/packages/pi-extension/.test-tmp/case-kTxpOy (detached)
+
+↑2.6M ↓670 16.6%/272k (auto)                                                                                       local

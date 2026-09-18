@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1360" height="780" viewBox="0 0 1360 780">
+<rect width="100%" height="100%" fill="#111318"/>
+<style>text{font-family:Menlo,Monaco,"Courier New",monospace;font-size:13px;white-space:pre}</style>
+<text x="15" y="22" fill="#8fbcbb">Claude Code 2.1.276 - live compact adviser checkpoint</text>
+<text x="15" y="42" fill="#d8dee9">  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.</text>
+<text x="15" y="58" fill="#d8dee9">  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.</text>
+<text x="15" y="74" fill="#d8dee9">  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.</text>
+<text x="15" y="90" fill="#d8dee9">  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.</text>
+<text x="15" y="106" fill="#d8dee9">  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.</text>
+<text x="15" y="122" fill="#d8dee9">  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.</text>
+<text x="15" y="138" fill="#d8dee9">  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.</text>
+<text x="15" y="154" fill="#d8dee9">  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.</text>
+<text x="15" y="170" fill="#d8dee9">  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.</text>
+<text x="15" y="186" fill="#d8dee9">  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.</text>
+<text x="15" y="202" fill="#d8dee9">  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.</text>
+<text x="15" y="218" fill="#d8dee9">  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.</text>
+<text x="15" y="234" fill="#d8dee9">  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.</text>
+<text x="15" y="250" fill="#d8dee9">  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.</text>
+<text x="15" y="266" fill="#d8dee9">  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.</text>
+<text x="15" y="282" fill="#d8dee9">  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.</text>
+<text x="15" y="298" fill="#d8dee9">  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.</text>
+<text x="15" y="314" fill="#d8dee9">  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.</text>
+<text x="15" y="330" fill="#d8dee9">  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.</text>
+<text x="15" y="346" fill="#d8dee9">  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.</text>
+<text x="15" y="362" fill="#d8dee9">  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.</text>
+<text x="15" y="378" fill="#d8dee9">  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.</text>
+<text x="15" y="394" fill="#d8dee9">  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.</text>
+<text x="15" y="410" fill="#d8dee9">  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.</text>
+<text x="15" y="426" fill="#d8dee9">  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.</text>
+<text x="15" y="442" fill="#d8dee9">  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.</text>
+<text x="15" y="458" fill="#d8dee9">  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.</text>
+<text x="15" y="474" fill="#d8dee9">  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.</text>
+<text x="15" y="490" fill="#d8dee9">  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.</text>
+<text x="15" y="506" fill="#d8dee9">  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.</text>
+<text x="15" y="522" fill="#d8dee9">  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.</text>
+<text x="15" y="538" fill="#d8dee9">  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.</text>
+<text x="15" y="554" fill="#d8dee9">  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.</text>
+<text x="15" y="570" fill="#d8dee9">  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.</text>
+<text x="15" y="586" fill="#d8dee9">  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.</text>
+<text x="15" y="602" fill="#d8dee9">  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.</text>
+<text x="15" y="618" fill="#d8dee9">  Implementation notes for the parser module.</text>
+<text x="15" y="650" fill="#d8dee9">✻</text>
+<text x="22.82" y="650" fill="#d8dee9"> </text>
+<text x="30.64" y="650" fill="#d8dee9">Cooked for 0s · done 9:02 AM</text>
+<text x="15" y="666" fill="#d8dee9">                                                                     </text>
+<text x="554.58" y="666" fill="#d8dee9">compact-adviser: Minimum context saved: 60,000 tokens (all sessions).</text>
+<text x="15" y="682" fill="#d8dee9">────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────</text>
+<text x="15" y="698" fill="#d8dee9">❯ </text>
+<text x="15" y="714" fill="#d8dee9">────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────</text>
+<text x="15" y="730" fill="#d8dee9">  </text>
+<text x="30.64" y="730" fill="#ffd75f">⚠ compact-adviser: Compact adviser: work appears completed or recorded. Run /compact to save tokens.</text>
+<text x="15" y="746" fill="#d8dee9">  </text>
+<text x="30.64" y="746" fill="#d8dee9">⏸ manual mode on · ? for shortcuts · ← for agents</text>
+</svg>

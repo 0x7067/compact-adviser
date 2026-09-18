@@ -1,0 +1,3 @@
+rendered_hint_occurrences=1
+warning_yellow_xterm_226=true
+notify_duplicate_present=false

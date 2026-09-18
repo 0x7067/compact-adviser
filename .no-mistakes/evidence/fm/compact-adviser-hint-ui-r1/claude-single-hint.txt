@@ -1,0 +1,45 @@
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module. Implementation notes for the parser module. Implementation notes for the parser module.
+  Implementation notes for the parser module.
+
+✻ Cooked for 0s · done 9:02 AM
+                                                                     compact-adviser: Minimum context saved: 60,000 tokens (all sessions).
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯ 
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  ⚠ compact-adviser: Compact adviser: work appears completed or recorded. Run /compact to save tokens.
+  ⏸ manual mode on · ? for shortcuts · ← for agents
