@@ -27,11 +27,15 @@ import {
 } from "./support.ts";
 
 const MESSAGES = [{ role: "user" as const, text: "hello", toolUses: [] }];
-const HINT = "Potential session boundary detected. Run /compact to save tokens.";
+const HINT = "Compact adviser: work appears completed or recorded. Run /compact to save tokens.";
 
 function lastJsonl(write: { text: string } | undefined) {
   const lines = (write?.text ?? "").trim().split("\n").filter(Boolean);
   return JSON.parse(lines.at(-1) ?? "");
+}
+
+function hinted(w: World) {
+  return w.journal.statuses.some((s) => typeof s === "string" && s.includes(HINT));
 }
 
 /** Drain `$.clock.after(0, …)` plus the async judgment it starts. */
@@ -96,8 +100,8 @@ describe("turn-end gates", () => {
     expect(request.body.includes(KEY)).toBe(false);
     expect(JSON.parse(request.body).model).toBe("jev-latest");
     expect(w.journal.statuses.at(-1)).toBe(HINT);
-    expect(w.journal.toasts).toContain(HINT);
-    expect(w.journal.suggestions).toEqual(["/compact"]);
+    expect(w.journal.toasts.includes(HINT)).toBe(false);
+    expect(w.journal.suggestions).toEqual([]);
     expect(w.journal.compactions).toHaveLength(0);
     expect(w.journal.fsWrites).toHaveLength(0);
   });
@@ -196,7 +200,7 @@ describe("turn-end gates", () => {
     await $.session.start(interactiveStart);
     await turnEnd($, w);
     expect(w.journal.requests).toHaveLength(1);
-    expect(w.journal.statuses.includes(HINT)).toBe(false);
+    expect(hinted(w)).toBe(false);
     expect(w.journal.fsWrites).toHaveLength(2);
     const responseLine = lastJsonl(w.journal.fsWrites[1]);
     expect(responseLine.kind).toBe("response");
@@ -360,7 +364,7 @@ describe("turn-end gates", () => {
     await $.turn.start({ turnId: "t2", origin: { kind: "composer" } } as never);
     await drain(w);
     expect(w.journal.requests).toHaveLength(0);
-    expect(w.journal.statuses.includes(HINT)).toBe(false);
+    expect(hinted(w)).toBe(false);
   });
 
   test("a turn that starts while TypeSafe answers discards the verdict", async ($, on) => {
@@ -376,7 +380,7 @@ describe("turn-end gates", () => {
     await $.turn.start({ turnId: "t2", origin: { kind: "composer" } } as never);
     release();
     await drain(w);
-    expect(w.journal.statuses.includes(HINT)).toBe(false);
+    expect(hinted(w)).toBe(false);
   });
 
   test("no repeat at the same checkpoint, and three exchanges between hints", async ($, on) => {
@@ -406,12 +410,12 @@ describe("turn-end gates", () => {
     await $.session.start(interactiveStart);
     await turnEnd($, w);
     expect(w.journal.requests).toHaveLength(1);
-    expect(w.journal.statuses.includes(HINT)).toBe(false);
+    expect(hinted(w)).toBe(false);
     w.usage.tokens = 180000;
     w.messages = longConversation("and now the window is nearly full");
     await turnEnd($, w);
     expect(w.journal.requests).toHaveLength(2);
-    expect(w.journal.statuses.includes(HINT)).toBe(true);
+    expect(hinted(w)).toBe(true);
   });
 
   test("unknown context usage keeps the strictest floor", async ($, on) => {
@@ -422,7 +426,7 @@ describe("turn-end gates", () => {
     });
     await $.session.start(interactiveStart);
     await turnEnd($, w);
-    expect(w.journal.statuses.includes(HINT)).toBe(true);
+    expect(hinted(w)).toBe(true);
   });
 
   test("uncertain or insufficient verdicts leave context alone", async ($, on) => {
@@ -434,7 +438,7 @@ describe("turn-end gates", () => {
     await $.session.start(interactiveStart);
     await turnEnd($, w);
     expect(w.journal.requests).toHaveLength(1);
-    expect(w.journal.statuses.includes(HINT)).toBe(false);
+    expect(hinted(w)).toBe(false);
     expect(w.journal.compactions).toHaveLength(0);
   });
 
@@ -473,7 +477,7 @@ describe("turn-end gates", () => {
     await $.session.start(interactiveStart);
     await turnEnd($, w);
     expect(w.journal.toasts).toContain(JUDGE_DISABLED_NETWORK_MESSAGE);
-    expect(w.journal.statuses.includes(HINT)).toBe(false);
+    expect(hinted(w)).toBe(false);
   });
 
   test("a two-second TypeSafe timeout leaves context alone", async ($, on) => {
@@ -483,7 +487,7 @@ describe("turn-end gates", () => {
     await turnEnd($, w);
     await w.clock.advance(2000);
     expect(w.journal.toasts).toContain(judgeErrorMessage("timeout"));
-    expect(w.journal.statuses.includes(HINT)).toBe(false);
+    expect(hinted(w)).toBe(false);
   });
 
   test("the endpoint override accepts only a loopback fixture", async ($, on) => {
@@ -585,7 +589,7 @@ describe("automatic mode", () => {
     await $.session.start(interactiveStart);
     await turnEnd($, w);
     expect(w.journal.compactions).toHaveLength(1);
-    expect(w.journal.statuses.includes(HINT)).toBe(false);
+    expect(hinted(w)).toBe(false);
   });
 
   test("auto chosen in /config without the first-use confirmation never compacts", async ($, on) => {

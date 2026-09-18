@@ -34,7 +34,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { CLAUDE, claudeEnv, claudeVersion, PACKAGE } from "./common.mjs";
 
-const HINT = "Potential session boundary detected. Run /compact to save tokens.";
+const HINT = "Compact adviser: work appears completed or recorded. Run /compact to save tokens.";
 const API_KEY = "sk-ant-fixture-not-a-real-key-0000000000";
 const TYPESAFE_KEY = "tsk-live-fixture-key";
 const SOCKET = `compact-adviser-e2e-${process.pid}`;
@@ -362,7 +362,11 @@ try {
   // 3. A judged hint.
   step = "hint";
   await command("E2E-PROMPT-1 build the parser");
-  await waitText(HINT, 60000);
+  const hintShot = await waitText(HINT, 60000);
+  const hintLines = hintShot.split("\n").filter((line) => line.includes(HINT));
+  if (hintLines.length !== 1 || hintLines[0].trim() !== `⚠ compact-adviser: ${HINT}`) {
+    throw new Error(`[${step}] expected one host-highlighted status line\n${hintShot}`);
+  }
   if (jevRequests.length !== 1)
     throw new Error(`[${step}] expected one TypeSafe request, saw ${jevRequests.length}`);
   const request = jevRequests[0];

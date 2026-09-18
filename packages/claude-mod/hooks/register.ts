@@ -65,7 +65,7 @@ import {
 
 const COMMAND = "compact-adviser";
 const PANE_ID = "compact-adviser";
-const HINT = "Potential session boundary detected. Run /compact to save tokens.";
+const HINT = "Compact adviser: work appears completed or recorded. Run /compact to save tokens.";
 const COMPACT_INSTRUCTIONS =
   "The session reached a natural boundary; keep the current work, pending tasks, referenced files, and the next step exact.";
 const PENDING_NOTICE_KEY = "pendingNotice";
@@ -297,8 +297,6 @@ async function judgeCheckpoint($: EngineInterface, epoch: number): Promise<void>
       if (epoch !== generation) return;
       hintVisible = true;
       $.ui.status(HINT);
-      $.ui.toast(HINT, { timeoutMs: 8000 });
-      void $.prompt.suggest({ text: "/compact" }).catch(() => undefined);
       return;
     }
     await $.store.set(key, state);
