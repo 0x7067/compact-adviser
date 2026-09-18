@@ -1,0 +1,5 @@
+                                                                             │TypeSafe API key: saved
+                                                                             │TypeSafe API key: saved · type to replace ⏎ set
+  compact-adviser: TypeSafe API key saved (all sessions). Status shows the…  │
+Persisted in isolated Claude Code plugin options: yes
+Secret absent after save: yes

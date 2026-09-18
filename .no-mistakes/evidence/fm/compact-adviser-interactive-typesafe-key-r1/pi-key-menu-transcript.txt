@@ -1,0 +1,8 @@
+Compact adviser (saved for all sessions)
+TypeSafe API key: not saved
+TypeSafe API key (saved for all sessions; never shown again)
+TypeSafe API key saved (all sessions). Status shows the source, never the value.
+TypeSafe API key: saved
+Mode: hint. Minimum: 40,000 tokens. Context: 0. Key: saved. No cooldown; semantic checks still apply. Request log:
+Saved config mode: 0600
+Secret absent from terminal transcript: yes

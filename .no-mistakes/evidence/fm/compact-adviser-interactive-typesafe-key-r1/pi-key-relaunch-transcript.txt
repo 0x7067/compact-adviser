@@ -1,0 +1,2 @@
+Mode: hint. Minimum: 40,000 tokens. Context: 0. Key: saved. No cooldown; semantic checks still apply. Request log:
+Secret absent after relaunch: yes

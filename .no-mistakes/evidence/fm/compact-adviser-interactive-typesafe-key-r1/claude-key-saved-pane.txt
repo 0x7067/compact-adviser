@@ -1,0 +1,45 @@
+                                                                             │Mode: Hints only (default) ▾                                 ✕
+ ▐▛███▛█   Claude Code v2.1.276                                              │Log TypeSafe requests: Off (default) ▾
+▝▜██████▀  Sonnet 4.5 · API Usage Billing                                    │Minimum context tokens: 40000
+  ▝▝ ▝▝    ~/…/01M2SJRAGVAHRY3J2ZNZF98J01/.test-lab-claude-key/project       │  A token count, not a percentage; no judgment below it.
+                                                                             │TypeSafe API key: saved
+                                                                             │TypeSafe API key: saved · type to replace ⏎ set
+⏺ compact-adviser: options changed — reloaded (7 hooks:                      │[ Clear saved key ]
+  session.start, turn.start, turn.complete, session.compact,                 │[ Reset minimum to 40,000 ]
+  command.run, config.describe, ui.render)                                   │[ Status ]
+                                                                             │[ Close ]
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+                                                                             │
+  compact-adviser: TypeSafe API key saved (all sessions). Status shows the…  │
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯ 
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  ⏸ manual mode on · ? for shortcuts · ← for agents
