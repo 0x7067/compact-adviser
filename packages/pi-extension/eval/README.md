@@ -11,6 +11,8 @@ minimal fake `ExtensionContext`, and production `judge()` / `qualifies()` from
 transcripts, checkpoints, worksheets, gold notes, results, and ablation output
 stay in gitignored `eval/local/`. Do not commit them. Aggregate per-stratum
 metrics for the shipped judge are in [`measured-results.md`](measured-results.md).
+For session-grouped splits, complete redacted worksheets, independent labellers,
+adjudication, and spend guards, see [`dataset.md`](dataset.md).
 
 ## Setup
 
@@ -69,6 +71,11 @@ are ignored when matching live request bodies.
 | Script | What |
 |---|---|
 | `eval/build.ts` | Spread-sample checkpoints and write worksheets |
+| `eval/tools/dataset.ts` | Inventory Claude/Pi sources, build eligible checkpoint banks, and render full redacted worksheets |
+| `eval/tools/split.py` | Freeze stratified session-group splits and spread/difficult sampling arms |
+| `eval/tools/label.py` / `collate.py` | Independent Fable/Astra labels, persistent raw responses, usage guards, and explicit disagreements |
+| `eval/tools/reuse.py` | Reuse all agreed labels with a visibly qualified session holdout |
+| `eval/tools/evidence.py` / `compare.ts` | Audit historical usage and re-gate stored answers without model calls |
 | `eval/build-targeted.ts` | Add minority-class rows marked `sampling=targeted-hard` |
 | `eval/score.ts` | Live Jev through shipped `judge()` / `score()` / `qualifies()`; records both answers and the composed score, gates at a reference usage (default 0.5) |
 | `eval/metrics.py` | Per-class precision/recall vs gold, both gold definitions per stratum, task-boundary recall |
@@ -103,13 +110,13 @@ One JSON object per checkpoint in `labels.jsonl`:
 | `id` | `cp001`, ... | Stable row id, aligned with checkpoints and worksheets |
 | `phase_gold` | `completed_checkpoint` / `still_in_progress` / `unclear` | Gold for the shipped phase question |
 | `continuation_gold` | `recoverable` / `needs_older_details` / `unclear` | Gold for reconstructibility (kept even though the shipped judge no longer asks this) |
-| `safe_to_compact` | boolean | Hindsight product truth: would compacting *exactly here* have cost the work that actually followed. Since v4 this is derived: `context_need != older` |
+| `safe_to_compact` | boolean / `null` | Hindsight product truth: would compacting *exactly here* have cost the work that actually followed. Since v4 this is derived: `context_need != older`, and `null` when `context_need` is `unknown` |
 | `pivot` | boolean | The next user turn introduced work unforeseeable at checkpoint time |
 | `note` | string | Evidence. Describe structure; do not paste transcript quotes into anything that might be published |
 | `task_boundary` | boolean | The checkpoint sits where one task ends and the next begins. Reported on its own because a judge can look healthy overall and still miss exactly these |
 | `sampling` | `spread` / `targeted-hard` / `targeted-followup` | On the checkpoint row. Targeted arms are enriched: per-class recall is unbiased, precision is not. `targeted-followup` rows were mined for a real user follow-up after a claimed completion |
 | `followup_kind` | `new_task` / `verdict` / `why` / `revise` / `status` / `continue` | Behaviour-based (v4): what the first substantive user turn after the checkpoint actually asked for |
-| `context_need` | `none` / `tail` / `artifact` / `older` | Behaviour-based (v4): where the assistant demonstrably served that follow-up from. `older` is the only class a compaction would have hurt |
+| `context_need` | `none` / `tail` / `artifact` / `older` / `unknown` | Behaviour-based (v4): where the assistant demonstrably served that follow-up from. `older` is the only class a compaction would have hurt. `unknown` when the bounded future cannot establish memory dependence; it is never automatically safe |
 | `origin` | `v3` / `v4-mined` | Whether the row survived from the earlier set or was mined for the behaviour audit |
 
 Worksheets in `eval/local/worksheet/` show, per row, the judge's view (user
@@ -239,7 +246,7 @@ and again with pivots excluded.
 ## Gitignore boundary
 
 Tracked: the runner, `eval/tools/` (miners and probes), `corpus.example.json` /
-`corpus.example.ts`, this README, `measured-results.md`, and `eval/local/.gitignore`.
+`corpus.example.ts`, this README, `dataset.md`, `measured-results.md`, and `eval/local/.gitignore`.
 
 Never commit: `eval/local/**` (except that gitignore file), `checkpoints*.jsonl`,
 `results*.jsonl`, `ablation*.jsonl`, `worksheet/`, or any other session-derived
