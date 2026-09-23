@@ -131,6 +131,19 @@ On Grok, save the TypeSafe key as `TYPESAFE_API_KEY` or a cwd `.env`, or with th
 
 Export `COMPACT_ADVISER_DISABLE=1` for unattended agent sessions, where advice has nobody to read it.
 
+## Routing through OpenRouter
+
+To use [OpenRouter’s System One API](https://openrouter.ai/docs/guides/community/typesafe-sdk), set these variables in the host’s launch environment:
+
+```sh
+export TYPESAFE_BASE_URL=https://openrouter.ai/api
+export TYPESAFE_API_KEY="$OPENROUTER_API_KEY"
+```
+
+This works on Pi, Claude Code, Codex, and Grok. Supply your OpenRouter key through `TYPESAFE_API_KEY` or the existing saved-key setting. Requests use the same `jev-latest` model, questions, and scoring, but pass through OpenRouter and are billed to your OpenRouter account. There is no automatic provider fallback.
+
+`TYPESAFE_BASE_URL` is read only from the launch environment, never a repository `.env` file. Unset it to restore direct TypeSafe routing. Only `https://api.typesafe.ai` and `https://openrouter.ai/api` are accepted; an invalid value produces no advice.
+
 ## What is sent to TypeSafe
 
 | Included | Not sent |
@@ -138,7 +151,7 @@ Export `COMPACT_ADVISER_DISABLE=1` for unattended agent sessions, where advice h
 | Bounded user constraints, up to the last 64 visible replies and tool results (clipped), short tool-result excerpts, an existing summary, saved-artifact names, omission markers | System prompts, hidden reasoning, images, environment variables, the API key in the model context and request body, complete transcripts |
 | Best-effort redaction of known key patterns and obvious sensitive-file results | A guarantee. Uninstall or set mode Off for material that must not leave the machine |
 
-Requests go to `https://api.typesafe.ai/v1/systemone`, are capped at 32,000 serialized UTF-8 bytes, and never treat an error as an affirmative judgment.
+Requests go to `https://api.typesafe.ai/v1/systemone` by default, or `https://openrouter.ai/api/v1/systemone` when explicitly configured. Requests are capped at 32,000 serialized UTF-8 bytes; errors never count as affirmative judgments.
 The TypeSafe API key never enters the model context or the request body; it is sent as the Authorization header to authenticate the call.
 Details: [SECURITY.md](https://github.com/kunchenguid/compact-adviser/blob/main/SECURITY.md).
 

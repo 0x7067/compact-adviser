@@ -77,7 +77,8 @@ export function installAdviser(pi: ExtensionAPI, options: Options): void {
   const now = options.now ?? Date.now;
   const evaluate =
     options.evaluate ??
-    ((state, key, signal, profile) => judge(state, key, signal, undefined, undefined, profile));
+    ((state, key, signal, profile) =>
+      judge(state, key, signal, undefined, undefined, profile, process.env.TYPESAFE_BASE_URL));
   const [major, minor] = options.version.split(".").map(Number);
   const supported = Number.isFinite(major) && (major > 0 || minor >= 82);
   let generation = 0;

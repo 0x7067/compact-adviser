@@ -194,6 +194,7 @@ async function onStop(payload: HookPayload, environment: Environment): Promise<H
       key.value,
       {
         ...cancellableJudgeTransport(environment.fetch),
+        baseUrl: environment.env.TYPESAFE_BASE_URL,
         ...(endpoint ? { endpoint } : {}),
       },
       profile,

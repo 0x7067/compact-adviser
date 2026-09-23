@@ -460,3 +460,25 @@ test("an unknown hook event does nothing at all", async () => {
     );
   });
 });
+
+test("the launch environment routes the hook through OpenRouter", async () => {
+  await withLab(async (lab) => {
+    writeRollout(lab.transcript, settledRollout());
+    const typesafe = fakeTypesafe();
+    const output = await handle(
+      stop(lab),
+      environment(lab, {
+        env: {
+          CODEX_HOME: lab.home,
+          TYPESAFE_API_KEY: "router-key",
+          TYPESAFE_BASE_URL: "https://openrouter.ai/api",
+        },
+        fetch: typesafe.fetch,
+      }),
+    );
+    assert.deepEqual(output, { systemMessage: HINT });
+    assert.equal(typesafe.requests.length, 1);
+    assert.equal(typesafe.requests[0]?.url, "https://openrouter.ai/api/v1/systemone");
+    assert.equal(typesafe.requests[0]?.authorization, "Bearer router-key");
+  });
+});

@@ -4,6 +4,15 @@
 import type { JudgeProfile } from "./profile.ts";
 
 export const ENDPOINT = "https://api.typesafe.ai/v1/systemone";
+
+export function judgeEndpoint(baseUrl?: string): string {
+  const base = baseUrl?.trim().replace(/\/+$/, "");
+  if (!base || base === "https://api.typesafe.ai") return ENDPOINT;
+  if (base === "https://openrouter.ai/api") return `${base}/v1/systemone`;
+  throw new Error(
+    "Unsupported TYPESAFE_BASE_URL; use https://api.typesafe.ai or https://openrouter.ai/api.",
+  );
+}
 export const MAX_REQUEST_BYTES = 32000;
 export const MAX_RESPONSE_BYTES = 32768;
 export const TIMEOUT_MS = 2000;
@@ -272,6 +281,7 @@ export interface Transport {
   /** Resolves after `ms`; the judgment times out when it wins the race. */
   sleep: (ms: number) => Promise<void>;
   endpoint?: string;
+  baseUrl?: string;
 }
 
 const TIMED_OUT: unique symbol = Symbol("timeout");
@@ -286,9 +296,13 @@ export async function judge(
   let response: { status: number; ok: boolean; text: string } | typeof TIMED_OUT;
   try {
     response = await Promise.race([
-      transport.fetch(transport.endpoint ?? ENDPOINT, {
+      transport.fetch(transport.endpoint ?? judgeEndpoint(transport.baseUrl), {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${key}`,
+          "User-Agent": "OpenAI File Downloader, XaiImageApiFetch/1.0",
+        },
         body,
       }),
       transport.sleep(TIMEOUT_MS).then((): typeof TIMED_OUT => TIMED_OUT),

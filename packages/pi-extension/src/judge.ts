@@ -1,6 +1,15 @@
 import type { JudgeProfile } from "./profile.ts";
 
 export const ENDPOINT = "https://api.typesafe.ai/v1/systemone";
+
+export function judgeEndpoint(baseUrl?: string): string {
+  const base = baseUrl?.trim().replace(/\/+$/, "");
+  if (!base || base === "https://api.typesafe.ai") return ENDPOINT;
+  if (base === "https://openrouter.ai/api") return `${base}/v1/systemone`;
+  throw new Error(
+    "Unsupported TYPESAFE_BASE_URL; use https://api.typesafe.ai or https://openrouter.ai/api.",
+  );
+}
 export const MAX_REQUEST_BYTES = 32000;
 /**
  * Two atomic questions in one request, composed in code.
@@ -246,13 +255,18 @@ export async function judge(
   transport: typeof fetch = fetch,
   timeoutMs = 2000,
   profile?: JudgeProfile,
+  baseUrl?: string,
 ): Promise<Judgment> {
   const timeout = AbortSignal.timeout(timeoutMs);
   try {
-    const response = await transport(ENDPOINT, {
+    const response = await transport(judgeEndpoint(baseUrl), {
       method: "POST",
       redirect: "error",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${key}`,
+        "User-Agent": "OpenAI File Downloader, XaiImageApiFetch/1.0",
+      },
       body: requestBody(state, profile),
       signal: AbortSignal.any([signal, timeout]),
     });

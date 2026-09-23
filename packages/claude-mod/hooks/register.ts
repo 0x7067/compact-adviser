@@ -289,6 +289,7 @@ async function judgeCheckpoint($: EngineInterface, epoch: number): Promise<void>
         view.state,
         await apiKey($),
         {
+          baseUrl: await $.env.get("TYPESAFE_BASE_URL"),
           fetch: (url, init) => $.http.fetch(url, init),
           sleep: (ms) => $.clock.sleep(ms),
           ...(endpoint ? { endpoint } : {}),

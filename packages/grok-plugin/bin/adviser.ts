@@ -362,6 +362,7 @@ async function runStop(payload: HookPayload): Promise<void> {
       activeKey,
       {
         ...cancellableJudgeTransport(),
+        baseUrl: env().TYPESAFE_BASE_URL,
         ...(endpoint ? { endpoint } : {}),
       },
       profile,

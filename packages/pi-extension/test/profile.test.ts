@@ -156,3 +156,57 @@ test("all real judge transports send selected questions", async () => {
   assert.equal(bodies.length, 4);
   for (const body of bodies) assert.deepEqual(JSON.parse(body).questions, questions);
 });
+
+test("OpenRouter routing preserves Jev requests and judgments across hosts", async () => {
+  for (const module of judges) {
+    assert.equal(module.judgeEndpoint(), "https://api.typesafe.ai/v1/systemone");
+    assert.equal(
+      module.judgeEndpoint(" https://openrouter.ai/api/ "),
+      "https://openrouter.ai/api/v1/systemone",
+    );
+    assert.throws(
+      () => module.judgeEndpoint("https://example.com"),
+      /Unsupported TYPESAFE_BASE_URL/,
+    );
+  }
+  const response = apiResponse(1, 0);
+  const calls: { url: string; body: string; authorization: string | null }[] = [];
+  const result = await judge.judge(
+    {},
+    "router-key",
+    new AbortController().signal,
+    async (url, init) => {
+      calls.push({
+        url: String(url),
+        body: String(init?.body),
+        authorization: new Headers(init?.headers).get("Authorization"),
+      });
+      return new Response(JSON.stringify(response));
+    },
+    100,
+    undefined,
+    "https://openrouter.ai/api",
+  );
+  assert.equal(judge.score(result), 0.5);
+  for (const module of [claudeJudge, codexJudge, grokJudge]) {
+    const result = await module.judge({}, "router-key", {
+      baseUrl: "https://openrouter.ai/api",
+      fetch: async (url, init) => {
+        calls.push({ url, body: init.body, authorization: init.headers.Authorization ?? null });
+        return { status: 200, ok: true, text: JSON.stringify(response) };
+      },
+      sleep: () => new Promise(() => {}),
+    });
+    assert.equal(module.score(result), 0.5);
+  }
+  assert.equal(calls.length, 4);
+  for (const call of calls) {
+    assert.equal(call.url, "https://openrouter.ai/api/v1/systemone");
+    assert.equal(call.authorization, "Bearer router-key");
+    assert.deepEqual(JSON.parse(call.body), {
+      model: "jev-latest",
+      state: {},
+      questions: judge.QUESTIONS,
+    });
+  }
+});
