@@ -179,6 +179,75 @@ const SHELL_TOOLS = new Set(["shell", "local_shell", "unified_exec"]);
 /** Interpreters whose `-c`/`-lc` argument is a shell line. */
 const SHELL_BINARIES = new Set(["sh", "bash", "zsh", "dash", "ksh", "ash"]);
 
+/** The object literal that opens at `open`, ended at its matching `}` and rewritten as JSON:
+ *  keys written as bare identifiers are quoted, keys already written as JSON strings are kept as
+ *  they are; `undefined` when the literal never closes. Nothing else is rewritten, so a literal
+ *  beyond this shape stays undecodable and is dropped by the `JSON.parse` that follows. */
+function objectLiteralJson(
+  text: string,
+  open: number,
+): { json: string; close: number } | undefined {
+  const stack: string[] = [];
+  let json = "";
+  let quote = false;
+  let expectKey = false;
+  for (let i = open; i < text.length; i++) {
+    const ch = text.charAt(i);
+    if (quote) {
+      json += ch;
+      if (ch === "\\") json += text.charAt(++i);
+      else if (ch === '"') quote = false;
+      continue;
+    }
+    if (expectKey && /[A-Za-z_$]/.test(ch)) {
+      const key = /^[A-Za-z_$][\w$]*/.exec(text.slice(i))?.[0] ?? "";
+      json += /^\s*:/.test(text.slice(i + key.length)) ? JSON.stringify(key) : key;
+      i += key.length - 1;
+      expectKey = false;
+      continue;
+    }
+    if (!/\s/.test(ch)) expectKey = false;
+    json += ch;
+    if (ch === '"') quote = true;
+    else if (ch === "{" || ch === "[") {
+      stack.push(ch);
+      expectKey = ch === "{";
+    } else if (ch === "}" || ch === "]") {
+      stack.pop();
+      if (stack.length === 0) return { json, close: i };
+    } else if (ch === ",") expectKey = stack[stack.length - 1] === "{";
+  }
+  return undefined;
+}
+
+/** The shell line a Codex `exec` call carries. Codex records shell work as a `custom_tool_call`
+ *  named `exec` whose input is a small JavaScript program, `const r = await tools.exec_command(
+ *  {cmd: "...", ...}); text(r.output);` — the shell line sits in the object literal's `cmd`
+ *  field, whose keys Codex writes either as bare identifiers or as JSON strings. The program is
+ *  data: nothing is executed, and no general JavaScript is parsed. Only that exact call form is
+ *  recognised, binding the same identifier in both places; any other program an `exec` call may
+ *  carry, such as the `apply_patch` variant, yields nothing, like any other unrecognised input. */
+function execProgramCommand(input: string): string {
+  const opened = /^const\s+([A-Za-z_$][\w$]*)\s*=\s*await\s+tools\.exec_command\(\s*\{/.exec(input);
+  if (!opened) return "";
+  const literal = objectLiteralJson(input, opened[0].length - 1);
+  if (!literal) return "";
+  // Only the output use of that same binding may follow the call: `); text(r.output);`.
+  const used = /^\s*\)\s*;\s*text\(\s*([A-Za-z_$][\w$]*)\.output\s*\)\s*;?\s*$/.exec(
+    input.slice(literal.close + 1),
+  );
+  if (!used || used[1] !== opened[1]) return "";
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(literal.json);
+  } catch {
+    return "";
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return "";
+  const command = (parsed as Record<string, unknown>).cmd;
+  return typeof command === "string" && command !== "" ? command : "";
+}
+
 /** The shell command line a shell tool call carries: a string command as written, or the script a
  *  `bash -lc`/`-c` wrapper names. Argv words are already-split literals, never a shell line. */
 function shellCommandText(argumentsJson: string): string {
@@ -576,6 +645,10 @@ export function shellWrittenPaths(command: string): string[] {
 
 function toolPaths(name: string, input: string): { written: string[]; removed: string[] } {
   if (name === "apply_patch") return patchChanges(input);
+  if (name === "exec") {
+    const command = execProgramCommand(input);
+    return { written: command ? shellWrittenPaths(command) : [], removed: [] };
+  }
   if (SHELL_TOOLS.has(name)) {
     const command = shellCommandText(input);
     return { written: command ? shellWrittenPaths(command) : [], removed: [] };

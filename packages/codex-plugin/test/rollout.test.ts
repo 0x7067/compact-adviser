@@ -400,6 +400,166 @@ test("an argv array without a shell wrapper adds no saved artifact", () => {
   assert.deepEqual(snapshot(rollout.messages).state.savedArtifacts, []);
 });
 
+test("shell redirection, tee, and sed -i in Codex's exec program feed the saved artifacts", () => {
+  // Codex 0.155+ records shell work as a custom_tool_call named `exec` whose input is a small
+  // JavaScript program calling tools.exec_command; the shell line sits in its `cmd` field.
+  const exec = (cmd: string, id: string) =>
+    toolCall(
+      "exec",
+      `const r = await tools.exec_command({"cmd":${JSON.stringify(cmd)},"workdir":"/home/me/code","yield_time_ms":10000,"max_output_tokens":20000}); text(r.output);\n`,
+      id,
+    );
+  const rollout = mapRecords([
+    exec("echo hi > src/gen.ts", "call_1"),
+    toolOutput("done", "call_1"),
+    exec("cat in.txt | tee copy.txt", "call_2"),
+    toolOutput("done", "call_2"),
+    exec("sed -i -e 's/a/b/' notes.md", "call_3"),
+    toolOutput("done", "call_3"),
+    exec("echo hi >| clobber.txt", "call_4"),
+    toolOutput("done", "call_4"),
+  ]);
+  assert.deepEqual(snapshot(rollout.messages).state.savedArtifacts, [
+    "src/gen.ts",
+    "copy.txt",
+    "notes.md",
+    "clobber.txt",
+  ]);
+});
+
+test("an exec call that reads, or writes nothing, adds no saved artifact", () => {
+  const exec = (cmd: string, id: string) =>
+    toolCall(
+      "exec",
+      `const r = await tools.exec_command({"cmd":${JSON.stringify(cmd)},"workdir":"/home/me/code","yield_time_ms":10000,"max_output_tokens":20000}); text(r.output);\n`,
+      id,
+    );
+  const rollout = mapRecords([
+    exec("sed -n '1,240p' notes.md", "call_1"),
+    toolOutput("the file contents", "call_1"),
+    exec("cat <<EOF\nfake > nope.txt\nEOF", "call_2"),
+    toolOutput("done", "call_2"),
+    exec('python3 -c "print(len(x) > 0)"', "call_3"),
+    toolOutput("true", "call_3"),
+    exec("echo hi > $TARGET", "call_4"),
+    toolOutput("done", "call_4"),
+  ]);
+  assert.deepEqual(snapshot(rollout.messages).state.savedArtifacts, []);
+});
+
+test("the exec spellings Codex really emits feed the saved artifacts", () => {
+  const call = (program: string, id: string) => [
+    toolCall("exec", program, id),
+    toolOutput("done", id),
+  ];
+  const rollout = mapRecords([
+    // No final semicolon after the output use.
+    ...call(
+      'const r = await tools.exec_command({"cmd":"echo hi > spaced.txt"}); text(r.output)\n',
+      "call_1",
+    ),
+    // No spaces around `=`, and the output use on its own line.
+    ...call(
+      'const r=await tools.exec_command({"cmd":"echo hi > tight.txt"});\ntext(r.output);\n',
+      "call_2",
+    ),
+    // A binding named something other than `r`.
+    ...call(
+      'const out = await tools.exec_command({"cmd":"echo hi > named.txt"}); text(out.output);\n',
+      "call_3",
+    ),
+    // Bare identifier keys, as Codex writes them most often.
+    ...call(
+      'const r = await tools.exec_command({ cmd: "echo hi > loose.txt", workdir: "/home/me" }); text(r.output);\n',
+      "call_4",
+    ),
+    // Identifier and JSON string keys mixed, around a nested literal and an array value.
+    ...call(
+      'const r = await tools.exec_command({cmd:"echo hi > mixed.txt","env":{PATH:"/bin"},argv:["a","b"]}); text(r.output);\n',
+      "call_5",
+    ),
+  ]);
+  assert.deepEqual(snapshot(rollout.messages).state.savedArtifacts, [
+    "spaced.txt",
+    "tight.txt",
+    "named.txt",
+    "loose.txt",
+    "mixed.txt",
+  ]);
+});
+
+test("an exec program beyond the one exec_command call form adds no saved artifact", () => {
+  const rollout = mapRecords([
+    // The apply_patch program variant Codex sends under the same `exec` name.
+    toolCall(
+      "exec",
+      'const patch = "*** Begin Patch\\n*** Add File: sneaky.ts\\n*** End Patch";\ntext(await tools.apply_patch(patch));\n',
+      "call_1",
+    ),
+    toolOutput("Applied.", "call_1"),
+    // A statement between the call and the output use is not the recognised form.
+    toolCall(
+      "exec",
+      'const r = await tools.exec_command({"cmd":"echo hi > guarded.txt"}); if (r.exit_code) text("failed"); text(r.output);\n',
+      "call_2",
+    ),
+    toolOutput("done", "call_2"),
+    // `cmd:` text inside another key's string value is not a `cmd` key, so nothing is written.
+    toolCall(
+      "exec",
+      'const r = await tools.exec_command({workdir:"/home/me", note:"cmd: \\"echo hi > trap.txt\\""}); text(r.output);\n',
+      "call_3",
+    ),
+    toolOutput("done", "call_3"),
+    // A literal JSON.parse still cannot decode — here, a bare identifier value — is dropped.
+    toolCall(
+      "exec",
+      "const r = await tools.exec_command({ cmd: line }); text(r.output);\n",
+      "call_9",
+    ),
+    toolOutput("done", "call_9"),
+    // A spread element is beyond the recognised literal, so it is dropped.
+    toolCall(
+      "exec",
+      'const r = await tools.exec_command({ ...base, cmd: "echo hi > spread.txt" }); text(r.output);\n',
+      "call_10",
+    ),
+    toolOutput("done", "call_10"),
+    // A `cmd` that is not a string is dropped.
+    toolCall(
+      "exec",
+      'const r = await tools.exec_command({"cmd":["bash","-lc","echo hi > argv.txt"]}); text(r.output);\n',
+      "call_4",
+    ),
+    toolOutput("done", "call_4"),
+    // A call this parser cannot close — the object literal never ends — is dropped.
+    toolCall(
+      "exec",
+      'const r = await tools.exec_command({"cmd":"echo hi > open.txt"); text(r.output);\n',
+      "call_5",
+    ),
+    toolOutput("done", "call_5"),
+    // An output use of a different binding than the call's is dropped.
+    toolCall(
+      "exec",
+      'const r = await tools.exec_command({"cmd":"echo hi > other.txt"}); text(s.output);\n',
+      "call_6",
+    ),
+    toolOutput("done", "call_6"),
+    // A call without the `const <id> = await` binding is dropped.
+    toolCall("exec", 'await tools.exec_command({"cmd":"echo hi > bare.txt"});\n', "call_7"),
+    toolOutput("done", "call_7"),
+    // An output use other than `<id>.output` is dropped.
+    toolCall(
+      "exec",
+      'const r = await tools.exec_command({"cmd":"echo hi > chained.txt"}); text(r.output.text);\n',
+      "call_8",
+    ),
+    toolOutput("done", "call_8"),
+  ]);
+  assert.deepEqual(snapshot(rollout.messages).state.savedArtifacts, []);
+});
+
 test("readRollout reads a file, and answers empty for one it cannot read", () => {
   const lab = makeLab();
   try {
