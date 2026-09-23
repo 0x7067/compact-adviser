@@ -173,10 +173,414 @@ function argumentPaths(argumentsJson: string): string[] {
   return typeof candidate === "string" && candidate !== "" ? [candidate] : [];
 }
 
+/** Codex tool calls that carry a shell command line in their `command` argument. */
+const SHELL_TOOLS = new Set(["shell", "local_shell", "unified_exec"]);
+
+/** Interpreters whose `-c`/`-lc` argument is a shell line. */
+const SHELL_BINARIES = new Set(["sh", "bash", "zsh", "dash", "ksh", "ash"]);
+
+/** The shell command line a shell tool call carries: a string command as written, or the script a
+ *  `bash -lc`/`-c` wrapper names. Argv words are already-split literals, never a shell line. */
+function shellCommandText(argumentsJson: string): string {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(argumentsJson);
+  } catch {
+    return "";
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return "";
+  const command = (parsed as Record<string, unknown>).command;
+  if (typeof command === "string") return command;
+  if (!Array.isArray(command)) return "";
+  const parts = command.filter((part): part is string => typeof part === "string");
+  const flag = parts.findIndex((part, at) => {
+    if (part !== "-c" && part !== "-lc") return false;
+    const before = parts[at - 1] ?? "";
+    return SHELL_BINARIES.has(before.slice(before.lastIndexOf("/") + 1));
+  });
+  if (flag === -1 || flag + 1 >= parts.length) return "";
+  return parts[flag + 1] as string;
+}
+
+interface ShellWord {
+  text: string;
+  /** Some part came from quotes or an escape, so spaces are literal characters. */
+  quoted: boolean;
+}
+
+type ShellToken =
+  | { kind: "word"; word: ShellWord }
+  | {
+      kind: "op";
+      text: string /** Digits attached directly before the operator: an fd. */;
+      io?: string;
+    };
+
+/** A quote left open at the end of a line, resumed with the line that follows. */
+interface ShellCarry {
+  quote: string;
+  word: string;
+  tokens: ShellToken[];
+}
+
+const SHELL_OPERATORS = [
+  "((",
+  ";;&",
+  ";;",
+  ";&",
+  "||",
+  "&&",
+  "|&",
+  "<<-",
+  "<<<",
+  "<<",
+  "<>",
+  ">&",
+  "<&",
+  ">|",
+  ">>",
+  "<",
+  ">",
+  "|",
+  "&",
+  ";",
+  "(",
+  ")",
+];
+const SHELL_CONTROL_OPS = new Set([
+  "((",
+  ";;&",
+  ";;",
+  ";&",
+  "||",
+  "&&",
+  "|&",
+  "|",
+  "&",
+  ";",
+  "(",
+  ")",
+]);
+/** Words that may stand before a command name without hiding it. */
+const SHELL_PREFIX_WORDS = new Set([
+  "sudo",
+  "command",
+  "exec",
+  "nohup",
+  "time",
+  "env",
+  "nice",
+  "stdbuf",
+  "xargs",
+]);
+const SHELL_DEV_PATHS = new Set(["/dev/null", "/dev/stdout", "/dev/stderr", "/dev/stdin"]);
+/** Bash reserved words that may precede a command, so `[[` after them still opens a conditional. */
+const SHELL_COND_INTRO_WORDS = new Set([
+  "if",
+  "then",
+  "else",
+  "elif",
+  "while",
+  "until",
+  "do",
+  "done",
+  "fi",
+  "{",
+  "}",
+  "!",
+]);
+
+function shellOperatorAt(line: string, at: number): string | undefined {
+  for (const op of SHELL_OPERATORS) if (line.startsWith(op, at)) return op;
+  return undefined;
+}
+
+/**
+ * Shell-lex one line into words and operators; quoted text stays literal.
+ * A quote the line never closes is returned as `carry`, which the caller feeds
+ * back with the next line so each line is lexed exactly once.
+ */
+function tokenizeShellLine(
+  line: string,
+  carry?: ShellCarry,
+): { tokens: ShellToken[]; carry?: ShellCarry } {
+  const tokens: ShellToken[] = carry ? carry.tokens : [];
+  let word = "";
+  let quoted = false;
+  let hasWord = false;
+  let open: string | undefined;
+  let i = 0;
+  const flush = () => {
+    if (hasWord) tokens.push({ kind: "word", word: { text: word, quoted } });
+    word = "";
+    quoted = false;
+    hasWord = false;
+  };
+  const readQuoted = (quote: string, from: number): number => {
+    let j = from;
+    while (j < line.length) {
+      if (quote === '"' && line.charAt(j) === "\\" && j + 1 < line.length) {
+        word += line.charAt(j + 1);
+        j += 2;
+        continue;
+      }
+      if (line.charAt(j) === quote) return j + 1;
+      word += line.charAt(j);
+      j++;
+    }
+    open = quote;
+    return j;
+  };
+  if (carry) {
+    word = `${carry.word}\n`;
+    quoted = true;
+    hasWord = true;
+    i = readQuoted(carry.quote, 0);
+  }
+  while (i < line.length) {
+    const ch = line.charAt(i);
+    if (ch === "'" || ch === '"') {
+      i = readQuoted(ch, i + 1);
+      quoted = true;
+      hasWord = true;
+      continue;
+    }
+    if (ch === "\\" && i + 1 < line.length) {
+      word += line.charAt(i + 1);
+      quoted = true;
+      hasWord = true;
+      i += 2;
+      continue;
+    }
+    if (/\s/.test(ch)) {
+      flush();
+      i++;
+      continue;
+    }
+    if (ch === "#" && !hasWord) break;
+    const op = shellOperatorAt(line, i);
+    if (op) {
+      // Digits attached directly to a redirection are its fd, not a word.
+      const io = hasWord && !SHELL_CONTROL_OPS.has(op) && /^\d+$/.test(word) ? word : undefined;
+      if (io) hasWord = false;
+      flush();
+      tokens.push({ kind: "op", text: op, ...(io ? { io } : {}) });
+      i += op.length;
+      continue;
+    }
+    word += ch;
+    hasWord = true;
+    i++;
+  }
+  if (open) return { tokens, carry: { quote: open, word, tokens } };
+  flush();
+  return { tokens };
+}
+
+/** A word becomes a written path only when it confidently names one real file. */
+function addShellWrittenPath(word: ShellWord, paths: string[]): void {
+  const path = word.text;
+  if (!path || path === "." || path === ".." || path.startsWith("-")) return;
+  if (SHELL_DEV_PATHS.has(path) || path.startsWith("/dev/fd/")) return;
+  // The shell would have expanded these; the literal text names no single file.
+  if (/[$`*?{}[\]()<>;&'"|\\~]/.test(path)) return;
+  if (!word.quoted && /\s/.test(path)) return;
+  paths.push(path);
+}
+
+function shellTeeTargets(args: readonly ShellWord[], paths: string[]): void {
+  for (const arg of args) {
+    if (arg.text.startsWith("-")) continue;
+    addShellWrittenPath(arg, paths);
+  }
+}
+
+function shellSedTargets(args: readonly ShellWord[], paths: string[]): void {
+  let inPlace = false;
+  let scriptGiven = false;
+  let suffixAmbiguous = false;
+  let bareInPlace = false;
+  let i = 0;
+  while (i < args.length) {
+    const arg = args[i];
+    if (!arg) break;
+    const text = arg.text;
+    const afterBare = bareInPlace;
+    bareInPlace = false;
+    if (afterBare && (text === "" || !text.startsWith("-"))) {
+      suffixAmbiguous = text !== "";
+      i++;
+      continue;
+    }
+    if (text === "--") {
+      i++;
+      break;
+    }
+    if (!text.startsWith("-") || text === "-") break;
+    if (!text.startsWith("--")) {
+      let consumesNext = false;
+      for (let k = 1; k < text.length; k++) {
+        const letter = text[k];
+        const rest = text.slice(k + 1);
+        if (letter === "e" || letter === "f") {
+          scriptGiven = true;
+          consumesNext = rest === "";
+          break;
+        }
+        if (letter === "i") {
+          inPlace = true;
+          bareInPlace = rest === "";
+          break;
+        }
+        if (letter === "l") {
+          consumesNext = rest === "";
+          break;
+        }
+      }
+      i += consumesNext && i + 1 < args.length ? 2 : 1;
+      continue;
+    }
+    if (text === "--in-place") {
+      inPlace = true;
+      bareInPlace = true;
+    } else if (text.startsWith("--in-place=")) {
+      inPlace = true;
+    } else if (text === "--expression" || text === "--file") {
+      scriptGiven = true;
+      if (i + 1 < args.length) i++;
+    } else if (text.startsWith("--expression=") || text.startsWith("--file=")) {
+      scriptGiven = true;
+    } else if (text === "--line-length") {
+      if (i + 1 < args.length) i++;
+    }
+    i++;
+  }
+  if (!inPlace) return;
+  // A non-empty word after a bare -i is a BSD suffix or a GNU script; without -e/-f, undecidable.
+  if (suffixAmbiguous && !scriptGiven) return;
+  const operands = args.slice(i).filter((arg) => arg.text !== "");
+  // Without -e/-f the first operand is the sed script; with them, all are files.
+  const files = scriptGiven ? operands : operands.slice(1);
+  for (const file of files) addShellWrittenPath(file, paths);
+}
+
+function matchShellWriters(words: readonly ShellWord[], paths: string[]): void {
+  let start = 0;
+  while (start < words.length) {
+    const word = words[start];
+    if (!word) break;
+    if (SHELL_PREFIX_WORDS.has(word.text) || /^[A-Za-z_][A-Za-z0-9_]*=/.test(word.text)) {
+      start++;
+      continue;
+    }
+    break;
+  }
+  const first = words[start]?.text;
+  if (first === "tee") shellTeeTargets(words.slice(start + 1), paths);
+  else if (first === "sed") shellSedTargets(words.slice(start + 1), paths);
+}
+
+function collectShellWrittenPaths(
+  tokens: readonly ShellToken[],
+  paths: string[],
+  heredocs: { delimiter: string; dashed: boolean }[],
+): void {
+  let segment: ShellWord[] = [];
+  let cond = false;
+  let arith = false;
+  let arithDepth = 0;
+  let suppress = false;
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+    if (!token) break;
+    if (token.kind === "word") {
+      const text = token.word.text;
+      if (
+        !cond &&
+        text === "[[" &&
+        (segment.length === 0 || segment.every((w) => SHELL_COND_INTRO_WORDS.has(w.text)))
+      ) {
+        cond = true;
+        suppress = true;
+      } else if (cond && text === "]]") {
+        cond = false;
+      }
+      segment.push(token.word);
+      continue;
+    }
+    if (SHELL_CONTROL_OPS.has(token.text)) {
+      if (token.text === "((" && !arith) arith = true;
+      else if (token.text === "(" && arith) arithDepth++;
+      else if (token.text === ")" && arith) {
+        if (arithDepth > 0) arithDepth--;
+        else arith = false;
+      }
+      if (!suppress) matchShellWriters(segment, paths);
+      segment = [];
+      suppress = cond || arith;
+      continue;
+    }
+    const target = tokens[i + 1];
+    const targetWord = target?.kind === "word" ? target.word : undefined;
+    if (token.text === "<<" || token.text === "<<-") {
+      if (targetWord) {
+        if (targetWord.text)
+          heredocs.push({ delimiter: targetWord.text, dashed: token.text === "<<-" });
+        i++;
+      }
+      continue;
+    }
+    if (
+      !cond &&
+      !arith &&
+      (token.text === ">" || token.text === ">>" || token.text === ">|") &&
+      (!token.io || token.io === "1") &&
+      targetWord
+    ) {
+      addShellWrittenPath(targetWord, paths);
+    }
+    if (targetWord) i++;
+  }
+  if (!suppress) matchShellWriters(segment, paths);
+}
+
+/**
+ * The files one shell command line writes through output redirection (`>`,
+ * `>>` and `>|`), `tee`, or in-place `sed`. The command text is data — nothing is
+ * executed or expanded. Parsing is conservative: heredoc bodies never yield a
+ * path, `>` and `<` inside `[[ ]]` conditionals and `(( ))` arithmetic are
+ * comparisons rather than redirections, a word the shell would have expanded or
+ * globbed names no file, and any construct the parser cannot read with
+ * confidence yields nothing.
+ *
+ * Copied verbatim into every host package; lockstep.test.ts keeps them in step.
+ */
+export function shellWrittenPaths(command: string): string[] {
+  const paths: string[] = [];
+  const heredocs: { delimiter: string; dashed: boolean }[] = [];
+  let carry: ShellCarry | undefined;
+  for (const line of command.split("\n")) {
+    const pending = heredocs[0];
+    if (pending) {
+      const candidate = pending.dashed ? line.replace(/^\t+/, "") : line;
+      if (candidate === pending.delimiter) heredocs.shift();
+      continue;
+    }
+    const lexed = tokenizeShellLine(line, carry);
+    carry = lexed.carry;
+    if (carry) continue;
+    collectShellWrittenPaths(lexed.tokens, paths, heredocs);
+  }
+  return paths;
+}
+
 function toolPaths(name: string, input: string): { written: string[]; removed: string[] } {
-  return name === "apply_patch"
-    ? patchChanges(input)
-    : { written: argumentPaths(input), removed: [] };
+  if (name === "apply_patch") return patchChanges(input);
+  if (SHELL_TOOLS.has(name)) {
+    const command = shellCommandText(input);
+    return { written: command ? shellWrittenPaths(command) : [], removed: [] };
+  }
+  return { written: argumentPaths(input), removed: [] };
 }
 
 function processExitCode(value: unknown): number | undefined {

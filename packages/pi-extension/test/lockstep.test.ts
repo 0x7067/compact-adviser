@@ -16,6 +16,7 @@ import * as claudeState from "../../claude-mod/lib/state.ts";
 import * as codexDisable from "../../codex-plugin/src/disable.ts";
 import * as codex from "../../codex-plugin/src/judge.ts";
 import * as codexLog from "../../codex-plugin/src/log.ts";
+import * as codexRollout from "../../codex-plugin/src/rollout.ts";
 import * as codexSnapshot from "../../codex-plugin/src/snapshot.ts";
 import * as codexState from "../../codex-plugin/src/state.ts";
 import * as grokDisable from "../../grok-plugin/lib/disable.ts";
@@ -134,6 +135,120 @@ test("every package parses the same wire response into the same judgment", () =>
       pi.qualifies(pi.parseJudgment(response), 0.2),
     );
   }
+});
+
+test("every package extracts the same written paths from the same shell commands", () => {
+  const commands = [
+    "echo hello > out.txt",
+    "echo hello >> log.md",
+    "echo hi >| clobber.txt",
+    "cat in.txt | tee copy.txt",
+    "tee -- out.txt",
+    "tee -- -weird.txt",
+    "sed -i 's/foo/bar/g' notes.md",
+    "sed -i.bak -e 's/a/b/' file.txt",
+    "sed -i.bak 's/a/b/' file.txt",
+    "sed --in-place=.bak 's/a/b/' file.txt",
+    "sed --in-place -e 's/a/b/' file.txt",
+    "sed -i '' -e 's/a/b/' bsd.txt",
+    "sed -i '' 's/a/b/' bsd.txt",
+    "sed -i .bak -e 's/x/y/' f.txt",
+    "sed -i .bak f.txt",
+    "sed -ni -e 's/x/y/p' f.txt",
+    "sed -Ei -e 's/x/y/' f.txt",
+    "sed -ie 's/x/y/' f.txt",
+    "sed -i --expression='s/x/y/' f.txt",
+    "cat <<EOF\nfake > nope.txt\nEOF",
+    'echo hi > "$TARGET"',
+    "make 2> err.log",
+    "run > out.log 2>&1",
+    "echo done > /dev/null",
+    "npm test",
+    "mkdir -p x && echo hi > x/a.md && sed -i s/a/b/ x/a.md",
+    "tee out.txt 2>/dev/null",
+    "2>err.log tee out.txt",
+    "cat x | tee log.txt 2>&1",
+    "sed -i -e 's/a/b/' f.txt 2>/dev/null",
+    "echo one > a.txt\necho two > b.txt",
+    'git commit -m "fix parser\n\nbefore > after.txt was wrong"',
+    "echo 'multi\nline > fake.txt\nend'",
+    "if (( count > 0 )); then echo yes; fi",
+    'if [[ "$ver" > "1.2" ]]; then echo newer; fi',
+    "[[ a > b ]] && echo hi",
+    "[[ a > b ]]; echo hi > real.txt",
+    "echo $((count > 0)) > stat.txt",
+    'for v in 1.0 2.0; do [[ "$v" > "1.2" ]] && echo newer; done',
+    'while read l; do [[ "$l" > lim.txt ]] && echo; done < in',
+    "{ [[ a > b.txt ]]; }",
+  ];
+  const extractors = [
+    claudeSnapshot.shellWrittenPaths,
+    codexRollout.shellWrittenPaths,
+    grokSnapshot.shellWrittenPaths,
+    piContext.shellWrittenPaths,
+  ];
+  for (const command of commands) {
+    const [first, ...rest] = extractors.map((extract) => extract(command));
+    for (const [i, got] of rest.entries())
+      assert.deepEqual(got, first, `${JSON.stringify(command)} extractor ${i + 1}`);
+  }
+  assert.deepEqual(claudeSnapshot.shellWrittenPaths("echo hi > out.txt"), ["out.txt"]);
+  assert.deepEqual(claudeSnapshot.shellWrittenPaths("echo hi >| clobber.txt"), ["clobber.txt"]);
+  assert.deepEqual(claudeSnapshot.shellWrittenPaths("cat <<EOF\nfake > nope.txt\nEOF"), []);
+  assert.deepEqual(claudeSnapshot.shellWrittenPaths("sed -i '' -e 's/a/b/' bsd.txt"), ["bsd.txt"]);
+  assert.deepEqual(claudeSnapshot.shellWrittenPaths("sed -i '' 's/a/b/' bsd.txt"), ["bsd.txt"]);
+  assert.deepEqual(claudeSnapshot.shellWrittenPaths("sed -i.bak 's/a/b/' file.txt"), ["file.txt"]);
+  assert.deepEqual(claudeSnapshot.shellWrittenPaths("sed --in-place=.bak 's/a/b/' file.txt"), [
+    "file.txt",
+  ]);
+  assert.deepEqual(claudeSnapshot.shellWrittenPaths("sed -i .bak -e 's/x/y/' f.txt"), ["f.txt"]);
+  assert.deepEqual(claudeSnapshot.shellWrittenPaths("sed -i .bak f.txt"), []);
+  assert.deepEqual(claudeSnapshot.shellWrittenPaths("sed -i 's/foo/bar/g' notes.md"), []);
+  assert.deepEqual(claudeSnapshot.shellWrittenPaths("sed -ni -e 's/x/y/p' f.txt"), ["f.txt"]);
+  assert.deepEqual(claudeSnapshot.shellWrittenPaths("sed -ie 's/x/y/' f.txt"), ["f.txt"]);
+  assert.deepEqual(claudeSnapshot.shellWrittenPaths("sed -i --expression='s/x/y/' f.txt"), [
+    "f.txt",
+  ]);
+  assert.deepEqual(claudeSnapshot.shellWrittenPaths("tee out.txt 2>/dev/null"), ["out.txt"]);
+  assert.deepEqual(claudeSnapshot.shellWrittenPaths("cat x | tee log.txt 2>&1"), ["log.txt"]);
+  assert.deepEqual(claudeSnapshot.shellWrittenPaths("tee -- out.txt"), ["out.txt"]);
+  assert.deepEqual(claudeSnapshot.shellWrittenPaths("tee -- -weird.txt"), []);
+  assert.deepEqual(claudeSnapshot.shellWrittenPaths("sed -i -e 's/a/b/' f.txt 2>/dev/null"), [
+    "f.txt",
+  ]);
+  assert.deepEqual(claudeSnapshot.shellWrittenPaths("2>err.log tee out.txt"), ["out.txt"]);
+  assert.deepEqual(
+    claudeSnapshot.shellWrittenPaths('git commit -m "fix parser\n\nbefore > after.txt was wrong"'),
+    [],
+  );
+  assert.deepEqual(claudeSnapshot.shellWrittenPaths("echo 'multi\nline > fake.txt\nend'"), []);
+  assert.deepEqual(claudeSnapshot.shellWrittenPaths("echo one > a.txt\necho two > b.txt"), [
+    "a.txt",
+    "b.txt",
+  ]);
+  assert.deepEqual(claudeSnapshot.shellWrittenPaths("if (( count > 0 )); then echo yes; fi"), []);
+  assert.deepEqual(
+    claudeSnapshot.shellWrittenPaths('if [[ "$ver" > "1.2" ]]; then echo newer; fi'),
+    [],
+  );
+  assert.deepEqual(claudeSnapshot.shellWrittenPaths("[[ a > b ]] && echo hi"), []);
+  assert.deepEqual(claudeSnapshot.shellWrittenPaths("[[ a > b ]]; echo hi > real.txt"), [
+    "real.txt",
+  ]);
+  assert.deepEqual(claudeSnapshot.shellWrittenPaths("echo $((count > 0)) > stat.txt"), [
+    "stat.txt",
+  ]);
+  assert.deepEqual(
+    claudeSnapshot.shellWrittenPaths('for v in 1.0 2.0; do [[ "$v" > "1.2" ]] && echo newer; done'),
+    [],
+  );
+  assert.deepEqual(
+    claudeSnapshot.shellWrittenPaths('while read l; do [[ "$l" > lim.txt ]] && echo; done < in'),
+    [],
+  );
+  assert.deepEqual(claudeSnapshot.shellWrittenPaths("{ [[ a > b.txt ]]; }"), []);
+  const longQuoted = `python3 -c 'payload${"\n".repeat(5000)}' > report.txt`;
+  for (const extract of extractors) assert.deepEqual(extract(longQuoted), ["report.txt"]);
 });
 
 test("every package scrubs owned settings fields and known key values the same way", () => {
