@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.8](https://github.com/kunchenguid/compact-adviser/compare/compact-adviser-v0.1.7...compact-adviser-v0.1.8) (2026-09-23)
+
+
+### Bug Fixes
+
+* **codex-plugin:** capture shell-written artifacts from Codex exec tool calls ([#50](https://github.com/kunchenguid/compact-adviser/issues/50)) ([6f06d04](https://github.com/kunchenguid/compact-adviser/commit/6f06d046a5c041a74e44a9f21bfd295fd918b4a3))
+
 ## [0.1.7](https://github.com/kunchenguid/compact-adviser/compare/compact-adviser-v0.1.6...compact-adviser-v0.1.7) (2026-09-23)
 
 
