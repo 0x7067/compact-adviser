@@ -1,0 +1,25 @@
+packages/pi-extension/src/context.ts
+  s_630a591d495ead::t_9904c5616b8307 531-532
+  s_630a591d495ead::t_df673bc44c4ab5 533
+packages/pi-extension/test/adviser.test.ts
+  s_630a591d495ead::t_0064498315e3be 288-308
+packages/pi-extension/src/adviser.ts
+  s_630a591d495ead::t_631c4dc969376b 6,188-192
+  s_630a591d495ead::t_89a7e73e90fc7e 41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8e2803864fd827309dbb09b3babcc3d5888a2c6e",
+  "prompts": {},
+  "sessions": {
+    "s_630a591d495ead": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a0d992-65d0-727a-bdca-2a59283ba095",
+        "model": "qwen3.8-flash"
+      },
+      "human_author": "Pedro Guimarães <21346846+0x7067@users.noreply.github.com>"
+    }
+  }
+}
