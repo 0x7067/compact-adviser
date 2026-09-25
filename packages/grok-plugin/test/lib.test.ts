@@ -88,12 +88,32 @@ test("shell redirection, tee, and sed -i feed the saved-artifact list", () => {
             name: "run_terminal_command",
             arguments: JSON.stringify({ command: "echo hi >| clobber.txt" }),
           },
+          {
+            id: "call-5",
+            name: "run_terminal_command",
+            arguments: JSON.stringify({ command: "sed --in-place 's/a/b/' in-place-long.txt" }),
+          },
+          {
+            id: "call-6",
+            name: "run_terminal_command",
+            arguments: JSON.stringify({
+              command: "sed --in-place=.bak 's/a/b/' in-place-suffix.txt",
+            }),
+          },
+          {
+            id: "call-7",
+            name: "run_terminal_command",
+            arguments: JSON.stringify({ command: "sed -i 's/a/b/' in-place-ambiguous.txt" }),
+          },
         ],
       }),
       line({ type: "tool_result", tool_call_id: "call-1", content: "ok" }),
       line({ type: "tool_result", tool_call_id: "call-2", content: "ok" }),
       line({ type: "tool_result", tool_call_id: "call-3", content: "ok" }),
       line({ type: "tool_result", tool_call_id: "call-4", content: "ok" }),
+      line({ type: "tool_result", tool_call_id: "call-5", content: "ok" }),
+      line({ type: "tool_result", tool_call_id: "call-6", content: "ok" }),
+      line({ type: "tool_result", tool_call_id: "call-7", content: "ok" }),
     ].join("\n"),
   );
   assert.deepEqual(snapshot(messages).state.savedArtifacts, [
@@ -101,6 +121,73 @@ test("shell redirection, tee, and sed -i feed the saved-artifact list", () => {
     "copy.txt",
     "notes.md",
     "clobber.txt",
+    "in-place-long.txt",
+    "in-place-suffix.txt",
+  ]);
+});
+
+test("tee and in-place sed after a bash reserved word feed the saved-artifact list", () => {
+  const { messages } = parseChatHistory(
+    [
+      line({ type: "system", content: "You are Grok." }),
+      line({
+        type: "assistant",
+        content: "Saving the findings.",
+        tool_calls: [
+          // Near misses: after a reserved word the next word is not the tee/sed command.
+          {
+            id: "call-1",
+            name: "run_terminal_command",
+            arguments: JSON.stringify({ command: "if [ -f a ]; then cat out.txt; fi" }),
+          },
+          {
+            id: "call-2",
+            name: "run_terminal_command",
+            arguments: JSON.stringify({ command: "for tee in a b; do :; done" }),
+          },
+          {
+            id: "call-3",
+            name: "run_terminal_command",
+            arguments: JSON.stringify({ command: "if grep -q sed notes.md; then :; fi" }),
+          },
+          {
+            id: "call-4",
+            name: "run_terminal_command",
+            arguments: JSON.stringify({ command: "if [ -f a ]; then tee out.txt; fi" }),
+          },
+          {
+            id: "call-5",
+            name: "run_terminal_command",
+            arguments: JSON.stringify({
+              command: "if [ -f a ]; then sed -i -e s/a/b/ notes.md; fi",
+            }),
+          },
+          {
+            id: "call-6",
+            name: "run_terminal_command",
+            arguments: JSON.stringify({ command: "for i in 1; do tee t.txt; done" }),
+          },
+          {
+            id: "call-7",
+            name: "run_terminal_command",
+            arguments: JSON.stringify({ command: "{ tee brace.txt; }" }),
+          },
+        ],
+      }),
+      line({ type: "tool_result", tool_call_id: "call-1", content: "ok" }),
+      line({ type: "tool_result", tool_call_id: "call-2", content: "ok" }),
+      line({ type: "tool_result", tool_call_id: "call-3", content: "ok" }),
+      line({ type: "tool_result", tool_call_id: "call-4", content: "ok" }),
+      line({ type: "tool_result", tool_call_id: "call-5", content: "ok" }),
+      line({ type: "tool_result", tool_call_id: "call-6", content: "ok" }),
+      line({ type: "tool_result", tool_call_id: "call-7", content: "ok" }),
+    ].join("\n"),
+  );
+  assert.deepEqual(snapshot(messages).state.savedArtifacts, [
+    "out.txt",
+    "notes.md",
+    "t.txt",
+    "brace.txt",
   ]);
 });
 

@@ -185,7 +185,15 @@ test("a compact-adviser.json read keeps mode diagnostics and drops the saved key
 
 test("bash redirection, tee, and sed -i feed the saved-artifact list", (t) => {
   const h = harness(t);
-  for (const name of ["docs-out.md", "copy.txt", "notes.md", "clobber.txt"])
+  for (const name of [
+    "docs-out.md",
+    "copy.txt",
+    "notes.md",
+    "clobber.txt",
+    "in-place-long.txt",
+    "in-place-suffix.txt",
+    "in-place-ambiguous.txt",
+  ])
     writeFileSync(join(h.dir, name), "x");
   const bash = (id: string, command: string) => ({
     ...assistant(""),
@@ -200,13 +208,49 @@ test("bash redirection, tee, and sed -i feed the saved-artifact list", (t) => {
   h.sm.appendMessage(toolResult("ok", "bash", "b3"));
   h.sm.appendMessage(bash("b4", "echo hi >| clobber.txt"));
   h.sm.appendMessage(toolResult("ok", "bash", "b4"));
+  h.sm.appendMessage(bash("b5", "sed --in-place 's/a/b/' in-place-long.txt"));
+  h.sm.appendMessage(toolResult("ok", "bash", "b5"));
+  h.sm.appendMessage(bash("b6", "sed --in-place=.bak 's/a/b/' in-place-suffix.txt"));
+  h.sm.appendMessage(toolResult("ok", "bash", "b6"));
+  h.sm.appendMessage(bash("b7", "sed -i 's/a/b/' in-place-ambiguous.txt"));
+  h.sm.appendMessage(toolResult("ok", "bash", "b7"));
   const view = snapshot(h.ctx);
   assert.deepEqual(view.state.savedArtifacts, [
     "docs-out.md",
     "copy.txt",
     "notes.md",
     "clobber.txt",
+    "in-place-long.txt",
+    "in-place-suffix.txt",
   ]);
+});
+
+test("tee and in-place sed after a bash reserved word feed the saved-artifact list", (t) => {
+  const h = harness(t);
+  for (const name of ["out.txt", "notes.md", "t.txt", "brace.txt"])
+    writeFileSync(join(h.dir, name), "x");
+  const bash = (id: string, command: string) => ({
+    ...assistant(""),
+    content: [{ type: "toolCall" as const, id, name: "bash", arguments: { command } }],
+    stopReason: "toolUse" as const,
+  });
+  // Near misses: after a reserved word the next word is not the tee/sed command.
+  h.sm.appendMessage(bash("n1", "if [ -f a ]; then cat out.txt; fi"));
+  h.sm.appendMessage(toolResult("ok", "bash", "n1"));
+  h.sm.appendMessage(bash("n2", "for tee in a b; do :; done"));
+  h.sm.appendMessage(toolResult("ok", "bash", "n2"));
+  h.sm.appendMessage(bash("n3", "if grep -q sed notes.md; then :; fi"));
+  h.sm.appendMessage(toolResult("ok", "bash", "n3"));
+  h.sm.appendMessage(bash("b1", "if [ -f a ]; then tee out.txt; fi"));
+  h.sm.appendMessage(toolResult("ok", "bash", "b1"));
+  h.sm.appendMessage(bash("b2", "if [ -f a ]; then sed -i -e s/a/b/ notes.md; fi"));
+  h.sm.appendMessage(toolResult("ok", "bash", "b2"));
+  h.sm.appendMessage(bash("b3", "for i in 1; do tee t.txt; done"));
+  h.sm.appendMessage(toolResult("ok", "bash", "b3"));
+  h.sm.appendMessage(bash("b4", "{ tee brace.txt; }"));
+  h.sm.appendMessage(toolResult("ok", "bash", "b4"));
+  const view = snapshot(h.ctx);
+  assert.deepEqual(view.state.savedArtifacts, ["out.txt", "notes.md", "t.txt", "brace.txt"]);
 });
 
 test("a bash command that writes nothing, or fails, adds no saved artifact", (t) => {

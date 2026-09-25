@@ -339,6 +339,9 @@ describe("judge input", () => {
           bash("s2", "cat in.txt | tee copy.txt"),
           bash("s3", "sed -i -e 's/a/b/' notes.md"),
           bash("s4", "echo hi >| clobber.txt"),
+          bash("s5", "sed --in-place 's/a/b/' in-place-long.txt"),
+          bash("s6", "sed --in-place=.bak 's/a/b/' in-place-suffix.txt"),
+          bash("s7", "sed -i 's/a/b/' in-place-ambiguous.txt"),
         ],
       },
     ]);
@@ -347,7 +350,36 @@ describe("judge input", () => {
       "copy.txt",
       "notes.md",
       "clobber.txt",
+      "in-place-long.txt",
+      "in-place-suffix.txt",
     ]);
+  });
+
+  test("tee and in-place sed after a bash reserved word still feed the saved artifacts", () => {
+    const bash = (id: string, command: string) => ({
+      tool_use_id: id,
+      tool: "Bash",
+      input: { command },
+      text: "ok",
+    });
+    const view = snapshot([
+      { role: "user", text: "Save the findings, then verify.", toolUses: [] },
+      {
+        role: "assistant",
+        text: "Captured inside the compound commands.",
+        toolUses: [
+          // Near misses: after a reserved word the next word is not the tee/sed command.
+          bash("n1", "if [ -f a ]; then cat out.txt; fi"),
+          bash("n2", "for tee in a b; do :; done"),
+          bash("n3", "if grep -q sed notes.md; then :; fi"),
+          bash("r1", "if [ -f a ]; then tee out.txt; fi"),
+          bash("r2", "if [ -f a ]; then sed -i -e s/a/b/ notes.md; fi"),
+          bash("r3", "for i in 1; do tee t.txt; done"),
+          bash("r4", "{ tee brace.txt; }"),
+        ],
+      },
+    ]);
+    expect(view.state.savedArtifacts).toEqual(["out.txt", "notes.md", "t.txt", "brace.txt"]);
   });
 
   test("a Bash command that writes nothing adds no artifact, and sensitive or failed writes stay out", () => {
